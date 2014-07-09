@@ -1123,3 +1123,38 @@ func (self *HttpServer) convertShardsToMap(shards []*cluster.ShardData) []interf
 	}
 	return result
 }
+
+type newSubscriptionInfo struct {
+    Ids         []int `json:"ids"`
+    StartTm     int64 `json:"starttm"`
+    EndTm       int64 `json:"endtm"`
+    QueryTm     int64 `json:"queryTm"`
+}
+
+func (self *HttpServer) subscribeTimeSeries(w libhttp.ResponseWriter, r *libhttp.Request) {
+    self.tryAsClusterAdmin(w, r, func(u User) (int, interface{}) {
+        newSubscriptions := newSubscriptionInfo{}
+        body, err := ioutil.ReadAll(r.Body)
+        if err != nil {
+            return libhttp.StatusInternalServerError, err.Error()
+        }
+
+        err = json.Unmarshal(body, &newSubscriptions)
+        if err != nil {
+            return libhttp.StatusInternalServerError, err.Error()
+        }
+
+        newSubscriptionData := &cluster.Subscription{
+                Ids:        newSubscriptionData.Ids,
+                StartTm:    time.Unmarshal(newSubscriptionData.StartTm, 0),
+                EndTm:      time.Unmarshal(newSubscriptionData.EndTm, 0),
+                QTime:      time.Now().Unix(),
+        }
+
+        _, err = self.raftServer.SaveSubscription()
+        if err != nil {
+            return libhttp.StatusInternalServerError, err.Error()
+        }
+        return libhttp.StatusInternalServerError, nil
+    })
+}
