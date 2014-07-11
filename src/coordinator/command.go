@@ -23,6 +23,7 @@ func init() {
 		&DropDatabaseCommand{},
 		&SaveDbUserCommand{},
         &SaveSubscriptionCommand{},
+        &ChangeSubscriptionCommand{},
 		&SaveClusterAdminCommand{},
 		&ChangeDbUserPassword{},
 		&ChangeDbUserPermissions{},
@@ -128,6 +129,26 @@ func (c *CreateDatabaseCommand) Apply(server raft.Server) (interface{}, error) {
 	return nil, err
 }
 
+type ChangeSubscriptionCommand struct {
+    ChangeSubscription *cluster.Subscription `json:"changesubscription"`
+}
+
+func NewChangeSubscriptionCommand(s *cluster.Subscription) *ChangeSubscriptionCommand {
+    return &ChangeSubscriptionCommand{
+        ChangeSubscription: s,
+    }
+}
+
+func (c *ChangeSubscriptionCommand) CommandName() string {
+    return "change_subscription"
+}
+
+func (c *ChangeSubscriptionCommand) Apply(server raft.Server) (interface{}, error) {
+    config := server.Context().(*cluster.ClusterConfiguration)
+    config.ChangeSubscription(c.ChangeSubscription)
+    return nil, nil
+}
+
 type SaveSubscriptionCommand struct {
     NewSubscription *cluster.Subscription `json:"newsubscription"`
 }
@@ -144,9 +165,7 @@ func (c *SaveSubscriptionCommand) CommandName() string {
 
 func (c *SaveSubscriptionCommand) Apply(server raft.Server) (interface{}, error) {
     config := server.Context().(*cluster.ClusterConfiguration)
-    fmt.Printf("newsubscription: %#v", c.NewSubscription)
     config.SaveSubscription(c.NewSubscription)
-    fmt.Printf("Config: %#v", config)
     return nil, nil
 }
 

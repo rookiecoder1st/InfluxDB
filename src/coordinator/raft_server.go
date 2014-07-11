@@ -203,6 +203,12 @@ func (s *RaftServer) SaveDbUser(u *cluster.DbUser) error {
 	return err
 }
 
+func (s *RaftServer) ChangeSubscription(sub *cluster.Subscription) error {
+    command := NewChangeSubscriptionCommand(sub)
+    _, err := s.doOrProxyCommand(command)
+    return err
+}
+
 func (s *RaftServer) ChangeDbUserPassword(db, username string, hash []byte) error {
 	command := NewChangeDbUserPasswordCommand(db, username, string(hash))
 	_, err := s.doOrProxyCommand(command)

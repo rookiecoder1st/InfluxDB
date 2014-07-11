@@ -33,7 +33,7 @@ type UserManager interface {
 	// for the given db
 	SetDbAdmin(requester common.User, db, username string, isAdmin bool) error
     // Save a user's subscription
-    SubscribeTimeSeries(id int, start int64, end int64) error
+    SubscribeTimeSeries(db, username string, id int, start, end int64) error
     // List the subscriptions currently available
     ListSubscriptions(requester common.User, db string) (error, error)
 }

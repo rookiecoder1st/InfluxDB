@@ -903,8 +903,7 @@ func (self *CoordinatorImpl) ChangeClusterAdminPassword(requester common.User, u
 	return self.raftServer.SaveClusterAdminUser(user)
 }
 
-func (self *CoordinatorImpl) SubscribeTimeSeries(id int, start int64, end int64) error {
-    /*
+func (self *CoordinatorImpl) SubscribeTimeSeries(db, username string, id int, start int64, end int64) error {
     if username == "" {
         return fmt.Errorf("Username cannot be empty")
     }
@@ -916,7 +915,6 @@ func (self *CoordinatorImpl) SubscribeTimeSeries(id int, start int64, end int64)
     if !self.clusterConfiguration.DatabaseExists(db) {
         return fmt.Errorf("No such database %s", db)
     }
-    */
 
     // May want to check that subscription not already there
     /*
@@ -925,8 +923,8 @@ func (self *CoordinatorImpl) SubscribeTimeSeries(id int, start int64, end int64)
     }
     */
 
-    log.Debug("(raft:%s) Creating subscription %s:%s:%s", self.raftServer.(*RaftServer).raftServer.Name(),/* db, username,*/ id, start, end)
-    return self.raftServer.SaveSubscription(&cluster.Subscription{id, start, end})
+    log.Debug("(raft:%s) Creating subscription %s:%s:%s:%s:%s", self.raftServer.(*RaftServer).raftServer.Name(), db, username, id, start, end)
+    return self.raftServer.SaveSubscription(&cluster.Subscription{db, username, id, start, end})
 }
 
 func (self *CoordinatorImpl) CreateDbUser(requester common.User, db, username, password string, permissions ...string) error {
@@ -984,8 +982,7 @@ func (self *CoordinatorImpl) DeleteDbUser(requester common.User, db, username st
 }
 
 func (self *CoordinatorImpl) ListSubscriptions(requester common.User, db string) (/*[]cluster.Subscription*/error, error) {
-    fmt.Printf("%#v, %#v", requester, db)
-    return self.clusterConfiguration.GetSubscriptions(), nil
+    return self.clusterConfiguration.GetSubscriptions(requester, db), nil
 }
 
 func (self *CoordinatorImpl) ListDbUsers(requester common.User, db string) ([]common.User, error) {
@@ -1019,6 +1016,10 @@ func (self *CoordinatorImpl) ChangeDbUserPassword(requester common.User, db, use
 		return err
 	}
 	return self.raftServer.ChangeDbUserPassword(db, username, hash)
+}
+
+func (self *CoordinatorImpl) ChangeSubscription(s *cluster.Subscription) error {
+    return self.raftServer.ChangeSubscription(s)
 }
 
 func (self *CoordinatorImpl) ChangeDbUserPermissions(requester common.User, db, username, readPermissions, writePermissions string) error {

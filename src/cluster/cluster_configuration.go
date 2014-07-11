@@ -107,7 +107,7 @@ func NewClusterConfiguration(
 		DatabaseReplicationFactors: make(map[string]struct{}),
 		clusterAdmins:              make(map[string]*ClusterAdmin),
 		dbUsers:                    make(map[string]map[string]*DbUser),
-        subscriptions:              make(map[string]*Subscription),
+        subscriptions:              make(map[string]map[string]*Subscription),
 		continuousQueries:          make(map[string][]*ContinuousQuery),
 		ParsedContinuousQueries:    make(map[string]map[uint32]*parser.SelectQuery),
 		servers:                    make([]*ClusterServer, 0),
@@ -409,20 +409,17 @@ func (self *ClusterConfiguration) GetLocalConfiguration() *configuration.Configu
 	return self.config
 }
 
-func (self *ClusterConfiguration) GetSubscriptions() /*[]*Subscription*/ error {
+func (self *ClusterConfiguration) GetSubscriptions(u common.User, db string) []*Subscription {
     self.subscriptionsLock.RLock()
     defer self.subscriptionsLock.RUnlock()
 
-    subscriptions := self.subscriptions
-    fmt.Printf("subs..: %#v\n", subscriptions)
-    /*
+    subscriptions := self.subscriptions[db]
     subscriptionList := make([]*Subscription, 0, len(subscriptions))
     for subscription := range subscriptions {
-        subscriptionList = append(subscriptionList, subscription)
+        thesubscription := subscriptions[subscription]
+        subscriptionList = append(subscriptionList, thesubscription)
     }
-    */
-    //return subscriptionList
-    return nil
+    return subscriptionList
 }
 
 func (self *ClusterConfiguration) GetDbUsers(db string) []common.User {
@@ -455,7 +452,12 @@ func (self *ClusterConfiguration) SaveSubscription(s *Subscription) {
 
     // fix to be a real db
     db := "mydb"
-    self.subscriptions[db] = s
+    subscriptions := self.subscriptions[db]
+    if subscriptions == nil {
+        subscriptions = map[string]*Subscription{}
+        self.subscriptions[db] = subscriptions
+    }
+    subscriptions[s.GetUserName()] = s
 }
 
 func (self *ClusterConfiguration) SaveDbUser(u *DbUser) {
@@ -475,6 +477,21 @@ func (self *ClusterConfiguration) SaveDbUser(u *DbUser) {
 		self.dbUsers[db] = dbUsers
 	}
 	dbUsers[u.GetName()] = u
+}
+
+func (self *ClusterConfiguration) ChangeSubscription(s *Subscription) error {
+    self.subscriptionsLock.Lock()
+    defer self.subscriptionsLock.Unlock()
+
+    subscriptions := self.subscriptions
+    if subscriptions == nil {
+        return fmt.Errorf("")
+    }
+    // To change I think you need user, db, AND id
+    //subscription
+
+    //subscription.qTime = time.Now().Unix()
+    return nil
 }
 
 func (self *ClusterConfiguration) ChangeDbUserPassword(db, username, hash string) error {

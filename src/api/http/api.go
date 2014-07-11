@@ -1165,7 +1165,13 @@ type newSubscriptionInfo struct {
 }
 
 func (self *HttpServer) subscribeTimeSeries(w libhttp.ResponseWriter, r *libhttp.Request) {
-    //db := r.URL.Query().Get(":db")
+    db := r.URL.Query().Get(":db")
+    username, _, err := getUsernameAndPassword(r)
+    if err != nil {
+        w.WriteHeader(libhttp.StatusBadRequest)
+        w.Write([]byte(err.Error()))
+        return
+    }
 
     self.tryAsClusterAdmin(w, r, func(u User) (int, interface{}) {
         newSubscription := newSubscriptionInfo{}
@@ -1179,38 +1185,46 @@ func (self *HttpServer) subscribeTimeSeries(w libhttp.ResponseWriter, r *libhttp
             return libhttp.StatusInternalServerError, err.Error()
         }
 
-        /*
-        newSubscriptionData := &cluster.Subscription{
-                Ids:        newSubscriptionData.Ids,
-                StartTm:    time.Unmarshal(newSubscriptionData.StartTm, 0),
-                EndTm:      time.Unmarshal(newSubscriptionData.EndTm, 0),
-        }
-        */
-
-        /*
-        _, err = self.raftServer.SaveSubscription()
-        if err != nil {
-            return libhttp.StatusInternalServerError, err.Error()
-        }
-        */
-
         // May want to throw in that you can use the username
-        if err := self.userManager.SubscribeTimeSeries(newSubscription.Id, newSubscription.StartTm, newSubscription.EndTm); err != nil {
+        if err := self.userManager.SubscribeTimeSeries(db, username, newSubscription.Id, newSubscription.StartTm, newSubscription.EndTm); err != nil {
             log.Error("Cannot create subscription: %s", err)
             return errorToStatusCode(err), err.Error()
         }
         log.Debug("Created subscription %s", newSubscription)
 
-        fmt.Println("HERER!")
-
         return libhttp.StatusAccepted, nil
     })
 }
 
+// Can bring back if want to allow for end time usage
+/*
+type querySub struct {
+    
+}
+*/
+
 // My understanding is that when they give us an end time we want to just query until that time
 // And then we update the subscription latest time to that end time
 func (self *HttpServer) querySubscription(w libhttp.ResponseWriter, r *libhttp.Request) {
+    //db := r.URL.Query().Get(":db")
+
+    // For now we're going to assume that u can't give an end time for Q
     self.tryAsClusterAdmin(w, r, func(u User) (int, interface{}) {
+        /*
+        subscriptionlist, err := self.userManager.ListSubscriptions(u, db)
+        if err != nil {
+            return errorToStatusCode(err), err.Error()
+        }
+
+        if err := self.userManager.ChangeSubscription(db, newSubscription.Id, newSubscription.StartTm, newSubscription.EndTm); err != nil {
+            log.Error("Cannot create subscription: %s", err)
+            return errorToStatusCode(err), err.Error()
+        }
+        log.Debug("Created subscription %s", newSubscription)
+        */
+
+        //if err := self.userManager.kk
+
         return libhttp.StatusAccepted, nil
     })
 }
