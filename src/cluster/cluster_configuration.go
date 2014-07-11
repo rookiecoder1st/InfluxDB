@@ -59,6 +59,8 @@ type ClusterConfiguration struct {
 	createDatabaseLock         sync.RWMutex
 	DatabaseReplicationFactors map[string]struct{}
 	usersLock                  sync.RWMutex
+    subscriptionsLock          sync.RWMutex
+    subscriptions              map[string]*Subscription
 	clusterAdmins              map[string]*ClusterAdmin
 	dbUsers                    map[string]map[string]*DbUser
 	servers                    []*ClusterServer
@@ -105,6 +107,7 @@ func NewClusterConfiguration(
 		DatabaseReplicationFactors: make(map[string]struct{}),
 		clusterAdmins:              make(map[string]*ClusterAdmin),
 		dbUsers:                    make(map[string]map[string]*DbUser),
+        subscriptions:              make(map[string]*Subscription),
 		continuousQueries:          make(map[string][]*ContinuousQuery),
 		ParsedContinuousQueries:    make(map[string]map[uint32]*parser.SelectQuery),
 		servers:                    make([]*ClusterServer, 0),
@@ -406,6 +409,22 @@ func (self *ClusterConfiguration) GetLocalConfiguration() *configuration.Configu
 	return self.config
 }
 
+func (self *ClusterConfiguration) GetSubscriptions() /*[]*Subscription*/ error {
+    self.subscriptionsLock.RLock()
+    defer self.subscriptionsLock.RUnlock()
+
+    subscriptions := self.subscriptions
+    fmt.Printf("subs..: %#v\n", subscriptions)
+    /*
+    subscriptionList := make([]*Subscription, 0, len(subscriptions))
+    for subscription := range subscriptions {
+        subscriptionList = append(subscriptionList, subscription)
+    }
+    */
+    //return subscriptionList
+    return nil
+}
+
 func (self *ClusterConfiguration) GetDbUsers(db string) []common.User {
 	self.usersLock.RLock()
 	defer self.usersLock.RUnlock()
@@ -428,6 +447,15 @@ func (self *ClusterConfiguration) GetDbUser(db, username string) *DbUser {
 		return nil
 	}
 	return dbUsers[username]
+}
+
+func (self *ClusterConfiguration) SaveSubscription(s *Subscription) {
+    self.subscriptionsLock.Lock()
+    defer self.subscriptionsLock.Unlock()
+
+    // fix to be a real db
+    db := "mydb"
+    self.subscriptions[db] = s
 }
 
 func (self *ClusterConfiguration) SaveDbUser(u *DbUser) {

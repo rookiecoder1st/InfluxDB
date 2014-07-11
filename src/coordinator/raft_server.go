@@ -191,6 +191,12 @@ func (s *RaftServer) DropDatabase(name string) error {
 	return err
 }
 
+func (s *RaftServer) SaveSubscription(sub *cluster.Subscription) error {
+    command := NewSaveSubscriptionCommand(sub)
+    _, err := s.doOrProxyCommand(command)
+    return err
+}
+
 func (s *RaftServer) SaveDbUser(u *cluster.DbUser) error {
 	command := NewSaveDbUserCommand(u)
 	_, err := s.doOrProxyCommand(command)

@@ -32,4 +32,8 @@ type UserManager interface {
 	// isn't a db admin or cluster admin or if user isn't a db user
 	// for the given db
 	SetDbAdmin(requester common.User, db, username string, isAdmin bool) error
+    // Save a user's subscription
+    SubscribeTimeSeries(id int, start int64, end int64) error
+    // List the subscriptions currently available
+    ListSubscriptions(requester common.User, db string) (error, error)
 }

@@ -108,6 +108,26 @@ func (self *ClusterAdmin) GetReadPermission() string {
 	return ".*"
 }
 
+type Subscription struct {
+//    Db      string  `json:"db"`
+//    User    string  `json:"user"`
+    Id      int     `json:"id"`
+    Start   int64   `json:"start"`
+    End     int64   `json:"end"`
+}
+
+func (self *Subscription) GetId() int {
+    return self.Id
+}
+
+func (self *Subscription) GetStartTime() int64 {
+    return self.Start
+}
+
+func (self *Subscription) GetEndTime() int64 {
+    return self.End
+}
+
 type DbUser struct {
 	CommonUser `json:"common"`
 	Db         string     `json:"db"`

@@ -155,6 +155,11 @@ func (self *HttpServer) Serve(listener net.Listener) {
 	// return whether the cluster is in sync or not
 	self.registerEndpoint(p, "get", "/sync", self.isInSync)
 
+    // subscriptions
+    self.registerEndpoint(p, "get", "/db/:db/subscriptions", self.listSubscriptions)
+    self.registerEndpoint(p, "post", "/db/:db/subscriptions", self.subscribeTimeSeries)
+    self.registerEndpoint(p, "post", "/db/:db/query_subscriptions", self.querySubscription)
+
 	if listener == nil {
 		self.startSsl(p)
 		return
@@ -1124,37 +1129,88 @@ func (self *HttpServer) convertShardsToMap(shards []*cluster.ShardData) []interf
 	return result
 }
 
+type SubscriptionDetail struct {
+    Db          string `json:"db"`
+    UserName    string `json:"userName"`
+    Id          int    `json:"id"`
+    StartTime   int64  `json:"startTm"`
+    EndTime     int64  `json:"endTm"`
+}
+
+func (self *HttpServer) listSubscriptions(w libhttp.ResponseWriter, r *libhttp.Request) {
+    db := r.URL.Query().Get(":db")
+
+    self.tryAsClusterAdmin(w, r, func(u User) (int, interface{}) {
+        subscriptionlist, err := self.userManager.ListSubscriptions(u, db)
+        if err != nil {
+            return errorToStatusCode(err), err.Error()
+        }
+
+        /*
+        subscriptions := make([]*SubscriptionDetail, 0, len(subscriptionlist))
+        for _, subscription := range subscriptions {
+                subscriptions = append(subscriptions, &SubscriptionDetail{db, u.Name, subscription.GetId(), subscription.GetStartTm(), subscription.GetEndTm()})
+        }
+        */
+        fmt.Printf("Ze subscriptions: %#v\n", subscriptionlist)
+        return libhttp.StatusAccepted, subscriptionlist
+    })
+}
+
+// Right now only supports for Unix time, switch for RFC3339
 type newSubscriptionInfo struct {
-    Ids         []int `json:"ids"`
-    StartTm     int64 `json:"starttm"`
-    EndTm       int64 `json:"endtm"`
-    QueryTm     int64 `json:"queryTm"`
+    Id          int   `json:"id"`
+    StartTm     int64 `json:"startTm"`
+    EndTm       int64 `json:"endTm"`
 }
 
 func (self *HttpServer) subscribeTimeSeries(w libhttp.ResponseWriter, r *libhttp.Request) {
+    //db := r.URL.Query().Get(":db")
+
     self.tryAsClusterAdmin(w, r, func(u User) (int, interface{}) {
-        newSubscriptions := newSubscriptionInfo{}
+        newSubscription := newSubscriptionInfo{}
         body, err := ioutil.ReadAll(r.Body)
         if err != nil {
             return libhttp.StatusInternalServerError, err.Error()
         }
 
-        err = json.Unmarshal(body, &newSubscriptions)
+        err = json.Unmarshal(body, &newSubscription)
         if err != nil {
             return libhttp.StatusInternalServerError, err.Error()
         }
 
+        /*
         newSubscriptionData := &cluster.Subscription{
                 Ids:        newSubscriptionData.Ids,
                 StartTm:    time.Unmarshal(newSubscriptionData.StartTm, 0),
                 EndTm:      time.Unmarshal(newSubscriptionData.EndTm, 0),
-                QTime:      time.Now().Unix(),
         }
+        */
 
+        /*
         _, err = self.raftServer.SaveSubscription()
         if err != nil {
             return libhttp.StatusInternalServerError, err.Error()
         }
-        return libhttp.StatusInternalServerError, nil
+        */
+
+        // May want to throw in that you can use the username
+        if err := self.userManager.SubscribeTimeSeries(newSubscription.Id, newSubscription.StartTm, newSubscription.EndTm); err != nil {
+            log.Error("Cannot create subscription: %s", err)
+            return errorToStatusCode(err), err.Error()
+        }
+        log.Debug("Created subscription %s", newSubscription)
+
+        fmt.Println("HERER!")
+
+        return libhttp.StatusAccepted, nil
+    })
+}
+
+// My understanding is that when they give us an end time we want to just query until that time
+// And then we update the subscription latest time to that end time
+func (self *HttpServer) querySubscription(w libhttp.ResponseWriter, r *libhttp.Request) {
+    self.tryAsClusterAdmin(w, r, func(u User) (int, interface{}) {
+        return libhttp.StatusAccepted, nil
     })
 }

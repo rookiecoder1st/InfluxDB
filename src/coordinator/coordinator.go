@@ -903,6 +903,32 @@ func (self *CoordinatorImpl) ChangeClusterAdminPassword(requester common.User, u
 	return self.raftServer.SaveClusterAdminUser(user)
 }
 
+func (self *CoordinatorImpl) SubscribeTimeSeries(id int, start int64, end int64) error {
+    /*
+    if username == "" {
+        return fmt.Errorf("Username cannot be empty")
+    }
+
+    if !isValidName(username) {
+        return fmt.Errorf("%s isn't a valid username", username)
+    }
+
+    if !self.clusterConfiguration.DatabaseExists(db) {
+        return fmt.Errorf("No such database %s", db)
+    }
+    */
+
+    // May want to check that subscription not already there
+    /*
+    if self.clusterConfiguration.GetSubscription(db, username, id, start, end) != nil {
+        return fmt.Errorf("Subscription %s already exists", id)
+    }
+    */
+
+    log.Debug("(raft:%s) Creating subscription %s:%s:%s", self.raftServer.(*RaftServer).raftServer.Name(),/* db, username,*/ id, start, end)
+    return self.raftServer.SaveSubscription(&cluster.Subscription{id, start, end})
+}
+
 func (self *CoordinatorImpl) CreateDbUser(requester common.User, db, username, password string, permissions ...string) error {
 	if ok, err := self.permissions.AuthorizeCreateDbUser(requester, db); !ok {
 		return err
@@ -955,6 +981,11 @@ func (self *CoordinatorImpl) DeleteDbUser(requester common.User, db, username st
 	}
 	user.CommonUser.IsUserDeleted = true
 	return self.raftServer.SaveDbUser(user)
+}
+
+func (self *CoordinatorImpl) ListSubscriptions(requester common.User, db string) (/*[]cluster.Subscription*/error, error) {
+    fmt.Printf("%#v, %#v", requester, db)
+    return self.clusterConfiguration.GetSubscriptions(), nil
 }
 
 func (self *CoordinatorImpl) ListDbUsers(requester common.User, db string) ([]common.User, error) {
