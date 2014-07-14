@@ -159,6 +159,9 @@ func (self *HttpServer) Serve(listener net.Listener) {
     self.registerEndpoint(p, "get", "/db/:db/subscriptions", self.listSubscriptions)
     self.registerEndpoint(p, "post", "/db/:db/subscriptions", self.subscribeTimeSeries)
     self.registerEndpoint(p, "post", "/db/:db/query_subscriptions", self.querySubscription)
+    self.registerEndpoint(p, "post", "/db/:db/subscriptions", self.deleteSubscriptions)
+    //self.registerEndpoint(p, "post", "/db/:db/query_follow", self.queryFollow)
+    //self.registerEndpoint(p, "post", "/db/:db/subscriptions", self.deleteSubscriptions)
 
 	if listener == nil {
 		self.startSsl(p)
@@ -1152,14 +1155,14 @@ func (self *HttpServer) listSubscriptions(w libhttp.ResponseWriter, r *libhttp.R
                 subscriptions = append(subscriptions, &SubscriptionDetail{db, u.Name, subscription.GetId(), subscription.GetStartTm(), subscription.GetEndTm()})
         }
         */
-        fmt.Printf("Ze subscriptions: %#v\n", subscriptionlist)
         return libhttp.StatusAccepted, subscriptionlist
     })
 }
 
 // Right now only supports for Unix time, switch for RFC3339
 type newSubscriptionInfo struct {
-    Id          int   `json:"id"`
+    Ids         []int `json:"ids"`
+    Duration    int   `json:"duration"`
     StartTm     int64 `json:"startTm"`
     EndTm       int64 `json:"endTm"`
 }
@@ -1185,14 +1188,61 @@ func (self *HttpServer) subscribeTimeSeries(w libhttp.ResponseWriter, r *libhttp
             return libhttp.StatusInternalServerError, err.Error()
         }
 
-        // May want to throw in that you can use the username
-        if err := self.userManager.SubscribeTimeSeries(db, username, newSubscription.Id, newSubscription.StartTm, newSubscription.EndTm); err != nil {
+        // should come up with a better error for this
+        if newSubscription.Duration == 0 {
+            return libhttp.StatusBadRequest, nil
+        }
+
+        if err := self.userManager.SubscribeTimeSeries(db, username, newSubscription.Id, newSubscription.Duration, newSubscription.StartTm, newSubscription.EndTm, true); err != nil {
             log.Error("Cannot create subscription: %s", err)
             return errorToStatusCode(err), err.Error()
         }
         log.Debug("Created subscription %s", newSubscription)
 
         return libhttp.StatusAccepted, nil
+    })
+}
+func (self *HttpServer) deleteDbContinuousQueries(w libhttp.ResponseWriter, r *libhttp.Request) {
+	db := r.URL.Query().Get(":db")
+	id, _ := strconv.ParseInt(r.URL.Query().Get(":id"), 10, 64)
+
+	self.tryAsDbUserAndClusterAdmin(w, r, func(u User) (int, interface{}) {
+		if err := self.coordinator.DeleteContinuousQuery(u, db, uint32(id)); err != nil {
+			return errorToStatusCode(err), err.Error()
+		}
+		return libhttp.StatusOK, nil
+	})
+}
+
+type delSubscriptionInfo struct {
+    DelIds  []int `json:"DelIds"`
+}
+
+func (self *HttpServer) deleteSubscriptions(w libhttp.ResponseWriter, r *libhttp.Request) {
+    db := r.URL.Query().Get(":db")
+    username, _, err := getUsernameAndPassword(r)
+    if err != nil {
+        w.WriteHeader(libhttp.StatusBadRequest)
+        w.Write([]byte(err.Error()))
+        return
+    }
+
+    self.tryAsClusterAdmin(w, r, func(u User) (int, interface{}) {
+        delSubscription := delSubscriptionInfo{}
+        body, err := ioutil.ReadAll(r.Body)
+        if err != nil {
+            return libhttp.StatusInternalServerError, err.Error()
+        }
+
+        err = json.Unmarshal(body, &delSubscription)
+        if err != nil {
+            return libhttp.StatusInternalServerError, err.Error()
+        }
+
+        if err := self.userManager.DeleteSubscriptions(u, db, delSubscription.DelIds); err != nil {
+            return errorToStatusCode(err), err.Error()
+        }
+        return libhttp.StatusOK, nil
     })
 }
 

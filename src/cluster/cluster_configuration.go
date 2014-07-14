@@ -60,7 +60,7 @@ type ClusterConfiguration struct {
 	DatabaseReplicationFactors map[string]struct{}
 	usersLock                  sync.RWMutex
     subscriptionsLock          sync.RWMutex
-    subscriptions              map[string]*Subscription
+    subscriptions              map[string]map[int]*Subscription
 	clusterAdmins              map[string]*ClusterAdmin
 	dbUsers                    map[string]map[string]*DbUser
 	servers                    []*ClusterServer
@@ -107,7 +107,7 @@ func NewClusterConfiguration(
 		DatabaseReplicationFactors: make(map[string]struct{}),
 		clusterAdmins:              make(map[string]*ClusterAdmin),
 		dbUsers:                    make(map[string]map[string]*DbUser),
-        subscriptions:              make(map[string]map[string]*Subscription),
+        subscriptions:              make(map[string]map[int]*Subscription),
 		continuousQueries:          make(map[string][]*ContinuousQuery),
 		ParsedContinuousQueries:    make(map[string]map[uint32]*parser.SelectQuery),
 		servers:                    make([]*ClusterServer, 0),
@@ -330,8 +330,12 @@ func (self *ClusterConfiguration) DropDatabase(name string) error {
 
 	self.usersLock.Lock()
 	defer self.usersLock.Unlock()
-
 	delete(self.dbUsers, name)
+
+    self.subscriptionsLock.Lock()
+    defer self.subscriptionsLock.Unlock()
+    delete(self.subscriptions, name)
+
 	return nil
 }
 
@@ -450,14 +454,21 @@ func (self *ClusterConfiguration) SaveSubscription(s *Subscription) {
     self.subscriptionsLock.Lock()
     defer self.subscriptionsLock.Unlock()
 
-    // fix to be a real db
-    db := "mydb"
+    db := s.GetDb()
     subscriptions := self.subscriptions[db]
+    if subscriptions.IsDeleted() {
+        if subscriptions == nil {
+            return
+        }
+        fmt.Printf("Ids: %#v\n", s.GetIds())
+        delete(subscriptions, s.GetIds())
+        return
+    }
     if subscriptions == nil {
-        subscriptions = map[string]*Subscription{}
+        subscriptions = map[int]*Subscription{}
         self.subscriptions[db] = subscriptions
     }
-    subscriptions[s.GetUserName()] = s
+    subscriptions[s.GetId()] = s
 }
 
 func (self *ClusterConfiguration) SaveDbUser(u *DbUser) {

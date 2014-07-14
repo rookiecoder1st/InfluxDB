@@ -2,6 +2,7 @@ package http
 
 import (
 	"common"
+    "cluster"
 )
 
 type UserManager interface {
@@ -33,7 +34,9 @@ type UserManager interface {
 	// for the given db
 	SetDbAdmin(requester common.User, db, username string, isAdmin bool) error
     // Save a user's subscription
-    SubscribeTimeSeries(db, username string, id int, start, end int64) error
+    SubscribeTimeSeries(db, username string, id, duration int, start, end int64, isDeleted bool) error
     // List the subscriptions currently available
-    ListSubscriptions(requester common.User, db string) (error, error)
+    ListSubscriptions(requester common.User, db string) ([]*cluster.Subscription, error)
+    // Delete subscriptions with id's from given list
+    DeleteSubscriptions(requester common.User, db string, ids []int) error
 }
