@@ -1193,7 +1193,7 @@ func (self *HttpServer) subscribeTimeSeries(w libhttp.ResponseWriter, r *libhttp
             return libhttp.StatusBadRequest, nil
         }
 
-        if err := self.userManager.SubscribeTimeSeries(db, username, newSubscription.Id, newSubscription.Duration, newSubscription.StartTm, newSubscription.EndTm, true); err != nil {
+        if err := self.userManager.SubscribeTimeSeries(db, username, newSubscription.Ids, newSubscription.Duration, newSubscription.StartTm, newSubscription.EndTm, false); err != nil {
             log.Error("Cannot create subscription: %s", err)
             return errorToStatusCode(err), err.Error()
         }
@@ -1201,17 +1201,6 @@ func (self *HttpServer) subscribeTimeSeries(w libhttp.ResponseWriter, r *libhttp
 
         return libhttp.StatusAccepted, nil
     })
-}
-func (self *HttpServer) deleteDbContinuousQueries(w libhttp.ResponseWriter, r *libhttp.Request) {
-	db := r.URL.Query().Get(":db")
-	id, _ := strconv.ParseInt(r.URL.Query().Get(":id"), 10, 64)
-
-	self.tryAsDbUserAndClusterAdmin(w, r, func(u User) (int, interface{}) {
-		if err := self.coordinator.DeleteContinuousQuery(u, db, uint32(id)); err != nil {
-			return errorToStatusCode(err), err.Error()
-		}
-		return libhttp.StatusOK, nil
-	})
 }
 
 type delSubscriptionInfo struct {
@@ -1239,7 +1228,7 @@ func (self *HttpServer) deleteSubscriptions(w libhttp.ResponseWriter, r *libhttp
             return libhttp.StatusInternalServerError, err.Error()
         }
 
-        if err := self.userManager.DeleteSubscriptions(u, db, delSubscription.DelIds); err != nil {
+        if err := self.userManager.DeleteSubscriptions(db, username, delSubscription.DelIds); err != nil {
             return errorToStatusCode(err), err.Error()
         }
         return libhttp.StatusOK, nil

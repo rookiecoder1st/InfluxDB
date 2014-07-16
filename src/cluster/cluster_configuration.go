@@ -413,6 +413,13 @@ func (self *ClusterConfiguration) GetLocalConfiguration() *configuration.Configu
 	return self.config
 }
 
+func (self *ClusterConfiguration) MakeSubscription(db, username string, ids []int) *Subscription {
+    self.subscriptionsLock.RLock()
+    defer self.subscriptionsLock.RUnlock()
+
+    return &Subscription{db, username, ids, 0, 0, 0, true}
+}
+
 func (self *ClusterConfiguration) GetSubscriptions(u common.User, db string) []*Subscription {
     self.subscriptionsLock.RLock()
     defer self.subscriptionsLock.RUnlock()
@@ -450,25 +457,28 @@ func (self *ClusterConfiguration) GetDbUser(db, username string) *DbUser {
 	return dbUsers[username]
 }
 
-func (self *ClusterConfiguration) SaveSubscription(s *Subscription) {
+func (self *ClusterConfiguration) SaveSubscriptions(s *Subscription) {
     self.subscriptionsLock.Lock()
     defer self.subscriptionsLock.Unlock()
 
+    fmt.Printf("Subscription values.. chupee: %#v\n", s)
+
     db := s.GetDb()
     subscriptions := self.subscriptions[db]
-    if subscriptions.IsDeleted() {
-        if subscriptions == nil {
-            return
+    for id := range s.GetIds() {
+        if subscriptions[id].GetIsDeleted() {
+            if subscriptions == nil {
+                continue
+            }
+            delete(subscriptions, id)
+        } else {
+            if subscriptions == nil {
+                subscriptions = map[int]*Subscription{}
+                self.subscriptions[db] = subscriptions
+            }
+            subscriptions[id] = s
         }
-        fmt.Printf("Ids: %#v\n", s.GetIds())
-        delete(subscriptions, s.GetIds())
-        return
     }
-    if subscriptions == nil {
-        subscriptions = map[int]*Subscription{}
-        self.subscriptions[db] = subscriptions
-    }
-    subscriptions[s.GetId()] = s
 }
 
 func (self *ClusterConfiguration) SaveDbUser(u *DbUser) {

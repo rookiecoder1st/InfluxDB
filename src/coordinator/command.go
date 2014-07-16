@@ -22,8 +22,9 @@ func init() {
 		&CreateDatabaseCommand{},
 		&DropDatabaseCommand{},
 		&SaveDbUserCommand{},
-        &SaveSubscriptionCommand{},
+        &SaveSubscriptionsCommand{},
         &ChangeSubscriptionCommand{},
+        &DeleteSubscriptionsCommand{},
 		&SaveClusterAdminCommand{},
 		&ChangeDbUserPassword{},
 		&ChangeDbUserPermissions{},
@@ -129,6 +130,26 @@ func (c *CreateDatabaseCommand) Apply(server raft.Server) (interface{}, error) {
 	return nil, err
 }
 
+type DeleteSubscriptionsCommand struct {
+    DeleteSubscriptions *cluster.Subscription `json:"deletesubscriptions"`
+}
+
+func NewDeleteSubscriptionsCommand(s *cluster.Subscription) *DeleteSubscriptionsCommand {
+    return &DeleteSubscriptionsCommand{
+        DeleteSubscriptions: s,
+    }
+}
+
+func (c *DeleteSubscriptionsCommand) CommandName() string {
+    return "delete_subscriptions"
+}
+
+func (c *DeleteSubscriptionsCommand) Apply(server raft.Server) (interface{}, error) {
+    config := server.Context().(*cluster.ClusterConfiguration)
+    config.SaveSubscriptions(c.DeleteSubscriptions)
+    return nil, nil
+}
+
 type ChangeSubscriptionCommand struct {
     ChangeSubscription *cluster.Subscription `json:"changesubscription"`
 }
@@ -149,23 +170,23 @@ func (c *ChangeSubscriptionCommand) Apply(server raft.Server) (interface{}, erro
     return nil, nil
 }
 
-type SaveSubscriptionCommand struct {
-    NewSubscription *cluster.Subscription `json:"newsubscription"`
+type SaveSubscriptionsCommand struct {
+    NewSubscriptions *cluster.Subscription `json:"newsubscriptions"`
 }
 
-func NewSaveSubscriptionCommand(s *cluster.Subscription) *SaveSubscriptionCommand {
-    return &SaveSubscriptionCommand{
-        NewSubscription: s,
+func NewSaveSubscriptionsCommand(s *cluster.Subscription) *SaveSubscriptionsCommand {
+    return &SaveSubscriptionsCommand{
+        NewSubscriptions: s,
     }
 }
 
-func (c *SaveSubscriptionCommand) CommandName() string {
-    return "save_subscription"
+func (c *SaveSubscriptionsCommand) CommandName() string {
+    return "save_subscriptions"
 }
 
-func (c *SaveSubscriptionCommand) Apply(server raft.Server) (interface{}, error) {
+func (c *SaveSubscriptionsCommand) Apply(server raft.Server) (interface{}, error) {
     config := server.Context().(*cluster.ClusterConfiguration)
-    config.SaveSubscription(c.NewSubscription)
+    config.SaveSubscriptions(c.NewSubscriptions)
     return nil, nil
 }
 

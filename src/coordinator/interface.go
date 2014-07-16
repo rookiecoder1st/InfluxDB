@@ -34,8 +34,9 @@ type ClusterConsensus interface {
 	DropDatabase(name string) error
 	CreateContinuousQuery(db string, query string) error
 	DeleteContinuousQuery(db string, id uint32) error
-    SaveSubscription(s *cluster.Subscription) error
+    SaveSubscriptions(s *cluster.Subscription) error
     ChangeSubscription(s *cluster.Subscription) error
+//  DeleteSubscriptions(db, username string, ids []int) error
 	SaveClusterAdminUser(u *cluster.ClusterAdmin) error
 	SaveDbUser(user *cluster.DbUser) error
 	ChangeDbUserPassword(db, username string, hash []byte) error

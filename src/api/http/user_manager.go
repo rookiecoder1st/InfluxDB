@@ -17,7 +17,7 @@ type UserManager interface {
 	DeleteClusterAdminUser(requester common.User, username string) error
 	// Change cluster admin's password. It's an error if requester isn't a cluster admin
 	ChangeClusterAdminPassword(requester common.User, username, password string) error
-	// list cluster admins. only a cluster admin can list the other cluster admins
+	// List cluster admins. Only a cluster admin can list the other cluster admins
 	ListClusterAdmins(requester common.User) ([]string, error)
 	// Create a db user, it's an error if requester isn't a db admin or cluster admin
 	CreateDbUser(request common.User, db, username, password string, permissions ...string) error
@@ -34,9 +34,9 @@ type UserManager interface {
 	// for the given db
 	SetDbAdmin(requester common.User, db, username string, isAdmin bool) error
     // Save a user's subscription
-    SubscribeTimeSeries(db, username string, id, duration int, start, end int64, isDeleted bool) error
+    SubscribeTimeSeries(db, username string, ids []int, duration int, start, end int64, isDeleted bool) error
     // List the subscriptions currently available
     ListSubscriptions(requester common.User, db string) ([]*cluster.Subscription, error)
     // Delete subscriptions with id's from given list
-    DeleteSubscriptions(requester common.User, db string, ids []int) error
+    DeleteSubscriptions(db, username string, ids []int) error
 }
