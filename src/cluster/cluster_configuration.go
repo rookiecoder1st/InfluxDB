@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 	"wal"
+//    "strconv"
 
 	log "code.google.com/p/log4go"
 )
@@ -413,11 +414,12 @@ func (self *ClusterConfiguration) GetLocalConfiguration() *configuration.Configu
 	return self.config
 }
 
-func (self *ClusterConfiguration) MakeSubscription(db, username string, ids []int) *Subscription {
+func (self *ClusterConfiguration) MakeSubscription(db, username string, id int) *Subscription {
     self.subscriptionsLock.RLock()
     defer self.subscriptionsLock.RUnlock()
 
-    return &Subscription{db, username, ids, 0, 0, 0, true}
+    //ids := []int{id}
+    return &Subscription{db, username, id, 0, 0, 0, true}
 }
 
 func (self *ClusterConfiguration) GetSubscriptions(u common.User, db string) []*Subscription {
@@ -461,24 +463,67 @@ func (self *ClusterConfiguration) SaveSubscriptions(s *Subscription) {
     self.subscriptionsLock.Lock()
     defer self.subscriptionsLock.Unlock()
 
-    fmt.Printf("Subscription values.. chupee: %#v\n", s)
-
     db := s.GetDb()
     subscriptions := self.subscriptions[db]
-    for id := range s.GetIds() {
-        if subscriptions[id].GetIsDeleted() {
-            if subscriptions == nil {
-                continue
-            }
-            delete(subscriptions, id)
-        } else {
-            if subscriptions == nil {
-                subscriptions = map[int]*Subscription{}
-                self.subscriptions[db] = subscriptions
-            }
-            subscriptions[id] = s
+    //for _, id := range s.GetIds() {
+    if s.GetIsDeleted() {
+        if subscriptions == nil {
+            return
         }
+        delete(subscriptions, s.GetId())
+    } else {
+        if subscriptions == nil {
+            subscriptions = map[int]*Subscription{}
+            self.subscriptions[db] = subscriptions
+        }
+        subscriptions[s.GetId()] = s
+
+        //dur := s.GetDuration()
+        //fmt.Println(dur_int)
+        //dur_str := strconv.Itoa(dur_int)
+        //fmt.Println(dur_str)
+        //dur_dur, err := time.ParseDuration(dur_str + "m")
+        /*
+        fmt.Printf("duration: %#v\n", dur_dur)
+        if err != nil {
+            fmt.Printf("Error received\n")
+        }
+
+        f := func() {
+            fmt.Printf("id within f: %#v", s.GetId())
+            delete(subscriptions, s.GetId())
+        }
+
+        fmt.Printf("finally here\n")
+        timer := time.AfterFunc(dur_dur, f)
+        defer timer.Stop()
+        dur_str := strconv.Itoa(dur)
+        dur_dur, _ := time.ParseDuration(dur_str + "m")
+        timer := time.NewTimer(time.Second * dur_dur)
+        <-timer.C
+        delete(subscriptions, s.GetId())
+        fmt.Printf("f: \n")
+        */
     }
+    /*
+    dur_int := s.GetDuration()
+    dur_str := strconv.Itoa(dur_int)
+    dur_dur, err := time.ParseDuration(dur_str + "m")
+    fmt.Printf("duration: %#v\n", dur_dur)
+    if err != nil {
+        fmt.Printf("Error received\n")
+    }
+
+    f := func() {
+        fmt.Printf("id within f: %#v", s.GetId())
+        delete(subscriptions, s.GetId())
+    }
+
+    fmt.Printf("finally here\n")
+    timer := time.AfterFunc(dur_dur, f)
+    defer timer.Stop()
+    fmt.Printf("f: %#v\n", f)
+    */
 }
 
 func (self *ClusterConfiguration) SaveDbUser(u *DbUser) {

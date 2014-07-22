@@ -111,7 +111,7 @@ func (self *ClusterAdmin) GetReadPermission() string {
 type Subscription struct {
     Db          string  `json:"db"`
     User        string  `json:"user"`
-    Ids         []int   `json:"ids"`
+    Id          int     `json:"id"`
     Duration    int     `json:"duration"`
     Start       int64   `json:"start"`
     End         int64   `json:"end"`
@@ -126,8 +126,8 @@ func (self *Subscription) GetUserName() string {
     return self.User
 }
 
-func (self *Subscription) GetIds() []int {
-    return self.Ids
+func (self *Subscription) GetId() int {
+    return self.Id
 }
 
 func (self *Subscription) GetDuration() int {

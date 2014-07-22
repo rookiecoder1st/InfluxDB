@@ -903,7 +903,7 @@ func (self *CoordinatorImpl) ChangeClusterAdminPassword(requester common.User, u
 	return self.raftServer.SaveClusterAdminUser(user)
 }
 
-func (self *CoordinatorImpl) SubscribeTimeSeries(db, username string, ids []int, duration int, start, end int64, isDeleted bool) error {
+func (self *CoordinatorImpl) SubscribeTimeSeries(db, username string, id int, duration int, start, end int64, isDeleted bool) error {
     if username == "" {
         return fmt.Errorf("Username cannot be empty")
     }
@@ -923,8 +923,8 @@ func (self *CoordinatorImpl) SubscribeTimeSeries(db, username string, ids []int,
     }
     */
 
-    log.Debug("(raft:%s) Creating subscription %s:%s:%s:%s:%s:%s", self.raftServer.(*RaftServer).raftServer.Name(), db, username, ids, duration, start, end)
-    return self.raftServer.SaveSubscriptions(&cluster.Subscription{db, username, ids, duration, start, end, isDeleted})
+    log.Debug("(raft:%s) Creating subscription %s:%s:%s:%s:%s:%s", self.raftServer.(*RaftServer).raftServer.Name(), db, username, id, duration, start, end)
+    return self.raftServer.SaveSubscriptions(&cluster.Subscription{db, username, id, duration, start, end, isDeleted})
 }
 
 func (self *CoordinatorImpl) CreateDbUser(requester common.User, db, username, password string, permissions ...string) error {
@@ -981,11 +981,11 @@ func (self *CoordinatorImpl) DeleteDbUser(requester common.User, db, username st
 	return self.raftServer.SaveDbUser(user)
 }
 
-func (self *CoordinatorImpl) DeleteSubscriptions(db, username string, ids []int) error {
-    s := self.clusterConfiguration.MakeSubscription(db, username, ids)
+func (self *CoordinatorImpl) DeleteSubscriptions(db, username string, id int) error {
+    s := self.clusterConfiguration.MakeSubscription(db, username, id)
 
     if s == nil {
-        return fmt.Errorf("No subscriptions exist for user '%s' with ids '%v'", username, ids)
+        return fmt.Errorf("No subscriptions exist for user '%s' with ids '%v'", username, id)
     }
     return self.raftServer.SaveSubscriptions(s)
 }

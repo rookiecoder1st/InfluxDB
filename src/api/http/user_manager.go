@@ -34,9 +34,9 @@ type UserManager interface {
 	// for the given db
 	SetDbAdmin(requester common.User, db, username string, isAdmin bool) error
     // Save a user's subscription
-    SubscribeTimeSeries(db, username string, ids []int, duration int, start, end int64, isDeleted bool) error
+    SubscribeTimeSeries(db, username string, ids int, duration int, start, end int64, isDeleted bool) error
     // List the subscriptions currently available
     ListSubscriptions(requester common.User, db string) ([]*cluster.Subscription, error)
     // Delete subscriptions with id's from given list
-    DeleteSubscriptions(db, username string, ids []int) error
+    DeleteSubscriptions(db, username string, id int) error
 }

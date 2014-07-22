@@ -159,7 +159,7 @@ func (self *HttpServer) Serve(listener net.Listener) {
     self.registerEndpoint(p, "get", "/db/:db/subscriptions", self.listSubscriptions)
     self.registerEndpoint(p, "post", "/db/:db/subscriptions", self.subscribeTimeSeries)
     self.registerEndpoint(p, "post", "/db/:db/query_subscriptions", self.querySubscription)
-    self.registerEndpoint(p, "post", "/db/:db/subscriptions", self.deleteSubscriptions)
+    self.registerEndpoint(p, "del", "/db/:db/subscriptions/:id", self.deleteSubscriptions)
     //self.registerEndpoint(p, "post", "/db/:db/query_follow", self.queryFollow)
     //self.registerEndpoint(p, "post", "/db/:db/subscriptions", self.deleteSubscriptions)
 
@@ -311,7 +311,7 @@ func (self *HttpServer) query(w libhttp.ResponseWriter, r *libhttp.Request) {
 	db := r.URL.Query().Get(":db")
 	pretty := isPretty(r)
 
-	self.tryAsDbUserAndClusterAdmin(w, r, func(user User) (int, interface{}) {
+	self.tryAsDbUserAndClusterAdmin(w, r, func(u User) (int, interface{}) {
 
 		precision, err := TimePrecisionFromString(r.URL.Query().Get("time_precision"))
 		if err != nil {
@@ -325,7 +325,7 @@ func (self *HttpServer) query(w libhttp.ResponseWriter, r *libhttp.Request) {
 			writer = &AllPointsWriter{map[string]*protocol.Series{}, w, precision, pretty}
 		}
 		seriesWriter := NewSeriesWriter(writer.yield)
-		err = self.coordinator.RunQuery(user, db, query, seriesWriter)
+		err = self.coordinator.RunQuery(u, db, query, seriesWriter)
 		if err != nil {
 			if e, ok := err.(*parser.QueryError); ok {
 				return errorToStatusCode(err), e.PrettyPrint()
@@ -1149,12 +1149,6 @@ func (self *HttpServer) listSubscriptions(w libhttp.ResponseWriter, r *libhttp.R
             return errorToStatusCode(err), err.Error()
         }
 
-        /*
-        subscriptions := make([]*SubscriptionDetail, 0, len(subscriptionlist))
-        for _, subscription := range subscriptions {
-                subscriptions = append(subscriptions, &SubscriptionDetail{db, u.Name, subscription.GetId(), subscription.GetStartTm(), subscription.GetEndTm()})
-        }
-        */
         return libhttp.StatusAccepted, subscriptionlist
     })
 }
@@ -1193,22 +1187,28 @@ func (self *HttpServer) subscribeTimeSeries(w libhttp.ResponseWriter, r *libhttp
             return libhttp.StatusBadRequest, nil
         }
 
-        if err := self.userManager.SubscribeTimeSeries(db, username, newSubscription.Ids, newSubscription.Duration, newSubscription.StartTm, newSubscription.EndTm, false); err != nil {
-            log.Error("Cannot create subscription: %s", err)
-            return errorToStatusCode(err), err.Error()
+        for _, id := range newSubscription.Ids {
+            if err := self.userManager.SubscribeTimeSeries(db, username, id, newSubscription.Duration, newSubscription.StartTm, newSubscription.EndTm, false); err != nil {
+                log.Error("Cannot create subscription: %s", err)
+                return errorToStatusCode(err), err.Error()
+            }
+            log.Debug("Created subscription %s", newSubscription)
         }
-        log.Debug("Created subscription %s", newSubscription)
 
         return libhttp.StatusAccepted, nil
     })
 }
 
+/*
 type delSubscriptionInfo struct {
-    DelIds  []int `json:"DelIds"`
+    DelIds  []int `json:"delids"`
 }
+*/
 
 func (self *HttpServer) deleteSubscriptions(w libhttp.ResponseWriter, r *libhttp.Request) {
     db := r.URL.Query().Get(":db")
+    id := r.URL.Query().Get(":id")
+
     username, _, err := getUsernameAndPassword(r)
     if err != nil {
         w.WriteHeader(libhttp.StatusBadRequest)
@@ -1217,6 +1217,7 @@ func (self *HttpServer) deleteSubscriptions(w libhttp.ResponseWriter, r *libhttp
     }
 
     self.tryAsClusterAdmin(w, r, func(u User) (int, interface{}) {
+        /*
         delSubscription := delSubscriptionInfo{}
         body, err := ioutil.ReadAll(r.Body)
         if err != nil {
@@ -1227,8 +1228,14 @@ func (self *HttpServer) deleteSubscriptions(w libhttp.ResponseWriter, r *libhttp
         if err != nil {
             return libhttp.StatusInternalServerError, err.Error()
         }
+        */
 
-        if err := self.userManager.DeleteSubscriptions(db, username, delSubscription.DelIds); err != nil {
+        id, err := strconv.Atoi(id)
+        if err != nil {
+            return libhttp.StatusBadRequest, err.Error()
+        }
+
+        if err := self.userManager.DeleteSubscriptions(db, username, id); err != nil {
             return errorToStatusCode(err), err.Error()
         }
         return libhttp.StatusOK, nil
@@ -1238,31 +1245,64 @@ func (self *HttpServer) deleteSubscriptions(w libhttp.ResponseWriter, r *libhttp
 // Can bring back if want to allow for end time usage
 /*
 type querySub struct {
-    
+   Ids []int `json:"ids"`
 }
 */
 
 // My understanding is that when they give us an end time we want to just query until that time
 // And then we update the subscription latest time to that end time
 func (self *HttpServer) querySubscription(w libhttp.ResponseWriter, r *libhttp.Request) {
-    //db := r.URL.Query().Get(":db")
+    db := r.URL.Query().Get(":db")
+    pretty := isPretty(r)
+    username, _, err := getUsernameAndPassword(r)
+	if err != nil {
+		w.WriteHeader(libhttp.StatusBadRequest)
+		w.Write([]byte(err.Error()))
+		return
+	}
 
     // For now we're going to assume that u can't give an end time for Q
     self.tryAsClusterAdmin(w, r, func(u User) (int, interface{}) {
-        /*
-        subscriptionlist, err := self.userManager.ListSubscriptions(u, db)
+		precision, err := TimePrecisionFromString(r.URL.Query().Get("time_precision"))
+		if err != nil {
+			return libhttp.StatusBadRequest, err.Error()
+		}
+
+		var writer Writer
+		if r.URL.Query().Get("chunked") == "true" {
+			writer = &ChunkWriter{w, precision, false, pretty}
+		} else {
+			writer = &AllPointsWriter{map[string]*protocol.Series{}, w, precision, pretty}
+		}
+		seriesWriter := NewSeriesWriter(writer.yield)
+
+        subs, err := self.userManager.ListSubscriptions(u, db)
         if err != nil {
             return errorToStatusCode(err), err.Error()
         }
 
-        if err := self.userManager.ChangeSubscription(db, newSubscription.Id, newSubscription.StartTm, newSubscription.EndTm); err != nil {
-            log.Error("Cannot create subscription: %s", err)
-            return errorToStatusCode(err), err.Error()
-        }
-        log.Debug("Created subscription %s", newSubscription)
-        */
+       for _, s := range subs {
+            start_tm_str := strconv.FormatInt(s.Start, 10)
+            end_tm_str := strconv.FormatInt(s.End, 10)
 
-        //if err := self.userManager.kk
+            query := "select * from /.*/ where time > " + start_tm_str + " and time < " + end_tm_str
+
+		    err = self.coordinator.RunQuery(u, db, query, seriesWriter)
+		    if err != nil {
+			    if e, ok := err.(*parser.QueryError); ok {
+				    return errorToStatusCode(err), e.PrettyPrint()
+			    }
+			    return errorToStatusCode(err), err.Error()
+		    }
+		    writer.done()
+
+            s.Start = time.Now().Unix()
+            if err := self.userManager.SubscribeTimeSeries(db, username, s.Id, s.Duration, s.Start, s.End, false); err != nil {
+                log.Error("Cannot create subscription: %s", err)
+                return errorToStatusCode(err), err.Error()
+            }
+            log.Debug("Created subscription %s", s)
+        }
 
         return libhttp.StatusAccepted, nil
     })
