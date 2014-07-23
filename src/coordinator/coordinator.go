@@ -79,6 +79,11 @@ func (self *CoordinatorImpl) RunQuery(user common.User, database string, querySt
 	if err != nil {
 		return err
 	}
+    /*
+    for _, qu := range q {
+        fmt.Printf("q: %#v\n", qu.SelectQuery)
+    }
+    */
 
 	for _, query := range q {
 		querySpec := parser.NewQuerySpec(user, database, query)
@@ -903,6 +908,7 @@ func (self *CoordinatorImpl) ChangeClusterAdminPassword(requester common.User, u
 	return self.raftServer.SaveClusterAdminUser(user)
 }
 
+//func (self *CoordinatorImpl) SubscribeTimeSeries(db, username, kw string, duration int, start, end int64, isDeleted bool) error {
 func (self *CoordinatorImpl) SubscribeTimeSeries(db, username string, id int, duration int, start, end int64, isDeleted bool) error {
     if username == "" {
         return fmt.Errorf("Username cannot be empty")

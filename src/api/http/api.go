@@ -159,7 +159,7 @@ func (self *HttpServer) Serve(listener net.Listener) {
     self.registerEndpoint(p, "get", "/db/:db/subscriptions", self.listSubscriptions)
     self.registerEndpoint(p, "post", "/db/:db/subscriptions", self.subscribeTimeSeries)
     self.registerEndpoint(p, "post", "/db/:db/query_subscriptions", self.querySubscription)
-    self.registerEndpoint(p, "del", "/db/:db/subscriptions/:id", self.deleteSubscriptions)
+    self.registerEndpoint(p, "post", "/db/:db/subscriptions/:id", self.deleteSubscriptions)
     //self.registerEndpoint(p, "post", "/db/:db/query_follow", self.queryFollow)
     //self.registerEndpoint(p, "post", "/db/:db/subscriptions", self.deleteSubscriptions)
 
@@ -1135,6 +1135,7 @@ func (self *HttpServer) convertShardsToMap(shards []*cluster.ShardData) []interf
 type SubscriptionDetail struct {
     Db          string `json:"db"`
     UserName    string `json:"userName"`
+//    Kw          string  `json:"kw"`
     Id          int    `json:"id"`
     StartTime   int64  `json:"startTm"`
     EndTime     int64  `json:"endTm"`
@@ -1155,10 +1156,11 @@ func (self *HttpServer) listSubscriptions(w libhttp.ResponseWriter, r *libhttp.R
 
 // Right now only supports for Unix time, switch for RFC3339
 type newSubscriptionInfo struct {
-    Ids         []int `json:"ids"`
-    Duration    int   `json:"duration"`
-    StartTm     int64 `json:"startTm"`
-    EndTm       int64 `json:"endTm"`
+//    Kws         []string `json:"kws"`
+    Ids         []int  `json:"ids"`
+    Duration    int    `json:"duration"`
+    StartTm     int64  `json:"startTm"`
+    EndTm       int64  `json:"endTm"`
 }
 
 func (self *HttpServer) subscribeTimeSeries(w libhttp.ResponseWriter, r *libhttp.Request) {
@@ -1187,6 +1189,24 @@ func (self *HttpServer) subscribeTimeSeries(w libhttp.ResponseWriter, r *libhttp
             return libhttp.StatusBadRequest, nil
         }
 
+        /*
+        if strings.ContainsAny(newSubscription.StartTm, ":") {
+                t_start, err := time.Parse(RFC3339, newSubscription.StartTm)
+                if err != nil {
+                    fmt.Println("no chupe")
+                } else {
+                    startTime := time.Unix(newSubscription.StartTm, 0).Format(time.RFC3339)
+                }
+        }
+        if strings.ContainsAny(newSubscription.EndTm, "-") {
+                t_end, err := time.Parse(RFC3339, newSubscription.EndTm)
+                if err != nil {
+                    fmt.Println("no chupe")
+                } else {
+                    endTime := time.Unix(newSubscription.EndTm, 0).Format(time.RFC3339)
+                }
+        */
+
         for _, id := range newSubscription.Ids {
             if err := self.userManager.SubscribeTimeSeries(db, username, id, newSubscription.Duration, newSubscription.StartTm, newSubscription.EndTm, false); err != nil {
                 log.Error("Cannot create subscription: %s", err)
@@ -1199,15 +1219,13 @@ func (self *HttpServer) subscribeTimeSeries(w libhttp.ResponseWriter, r *libhttp
     })
 }
 
-/*
 type delSubscriptionInfo struct {
     DelIds  []int `json:"delids"`
 }
-*/
 
 func (self *HttpServer) deleteSubscriptions(w libhttp.ResponseWriter, r *libhttp.Request) {
     db := r.URL.Query().Get(":db")
-    id := r.URL.Query().Get(":id")
+    //id := r.URL.Query().Get(":id")
 
     username, _, err := getUsernameAndPassword(r)
     if err != nil {
@@ -1217,7 +1235,6 @@ func (self *HttpServer) deleteSubscriptions(w libhttp.ResponseWriter, r *libhttp
     }
 
     self.tryAsClusterAdmin(w, r, func(u User) (int, interface{}) {
-        /*
         delSubscription := delSubscriptionInfo{}
         body, err := ioutil.ReadAll(r.Body)
         if err != nil {
@@ -1228,15 +1245,21 @@ func (self *HttpServer) deleteSubscriptions(w libhttp.ResponseWriter, r *libhttp
         if err != nil {
             return libhttp.StatusInternalServerError, err.Error()
         }
-        */
 
+        /*
         id, err := strconv.Atoi(id)
         if err != nil {
             return libhttp.StatusBadRequest, err.Error()
         }
+        */
 
-        if err := self.userManager.DeleteSubscriptions(db, username, id); err != nil {
-            return errorToStatusCode(err), err.Error()
+        fmt.Println("chupee")
+        fmt.Printf("Values: %#v\n", delSubscription.DelIds)
+        for _, id := range delSubscription.DelIds {
+            fmt.Println(id)
+            if err := self.userManager.DeleteSubscriptions(db, username, id); err != nil {
+                return errorToStatusCode(err), err.Error()
+            }
         }
         return libhttp.StatusOK, nil
     })
@@ -1284,8 +1307,10 @@ func (self *HttpServer) querySubscription(w libhttp.ResponseWriter, r *libhttp.R
        for _, s := range subs {
             start_tm_str := strconv.FormatInt(s.Start, 10)
             end_tm_str := strconv.FormatInt(s.End, 10)
+            fmt.Println(end_tm_str)
 
-            query := "select * from /.*/ where time > " + start_tm_str + " and time < " + end_tm_str
+            query := "select * from /.*/ where time > " + start_tm_str// + " and time < " + end_tm_str
+//            query := "select value from " + s.Kw + "where time > " + start_tm_str// + " and time < " + end_tm_str
 
 		    err = self.coordinator.RunQuery(u, db, query, seriesWriter)
 		    if err != nil {
@@ -1297,6 +1322,7 @@ func (self *HttpServer) querySubscription(w libhttp.ResponseWriter, r *libhttp.R
 		    writer.done()
 
             s.Start = time.Now().Unix()
+//            if err := self.userManager.SubscribeTimeSeries(db, username, s.Kw, s.Duration, s.Start, s.End, false); err != nil {
             if err := self.userManager.SubscribeTimeSeries(db, username, s.Id, s.Duration, s.Start, s.End, false); err != nil {
                 log.Error("Cannot create subscription: %s", err)
                 return errorToStatusCode(err), err.Error()

@@ -62,6 +62,7 @@ type ClusterConfiguration struct {
 	usersLock                  sync.RWMutex
     subscriptionsLock          sync.RWMutex
     subscriptions              map[string]map[int]*Subscription
+//    subscriptions              map[string]map[string]*Subscription
 	clusterAdmins              map[string]*ClusterAdmin
 	dbUsers                    map[string]map[string]*DbUser
 	servers                    []*ClusterServer
@@ -109,6 +110,7 @@ func NewClusterConfiguration(
 		clusterAdmins:              make(map[string]*ClusterAdmin),
 		dbUsers:                    make(map[string]map[string]*DbUser),
         subscriptions:              make(map[string]map[int]*Subscription),
+//        subscriptions:              make(map[string]map[string]*Subscription),
 		continuousQueries:          make(map[string][]*ContinuousQuery),
 		ParsedContinuousQueries:    make(map[string]map[uint32]*parser.SelectQuery),
 		servers:                    make([]*ClusterServer, 0),
@@ -414,12 +416,13 @@ func (self *ClusterConfiguration) GetLocalConfiguration() *configuration.Configu
 	return self.config
 }
 
+//func (self *ClusterConfiguration) MakeSubscription(db, username, kw string) *Subscription {
 func (self *ClusterConfiguration) MakeSubscription(db, username string, id int) *Subscription {
     self.subscriptionsLock.RLock()
     defer self.subscriptionsLock.RUnlock()
 
-    //ids := []int{id}
     return &Subscription{db, username, id, 0, 0, 0, true}
+//    return &Subscription{db, username, id, 0, 0, 0}
 }
 
 func (self *ClusterConfiguration) GetSubscriptions(u common.User, db string) []*Subscription {
@@ -465,11 +468,11 @@ func (self *ClusterConfiguration) SaveSubscriptions(s *Subscription) {
 
     db := s.GetDb()
     subscriptions := self.subscriptions[db]
-    //for _, id := range s.GetIds() {
     if s.GetIsDeleted() {
         if subscriptions == nil {
             return
         }
+//        delete(subscriptions, s.GetKw())
         delete(subscriptions, s.GetId())
     } else {
         if subscriptions == nil {
@@ -477,6 +480,8 @@ func (self *ClusterConfiguration) SaveSubscriptions(s *Subscription) {
             self.subscriptions[db] = subscriptions
         }
         subscriptions[s.GetId()] = s
+//        subscriptions[s.GetKw()] = s
+
 
         //dur := s.GetDuration()
         //fmt.Println(dur_int)
