@@ -163,7 +163,7 @@ func (self *HttpServer) Serve(listener net.Listener) {
     self.registerEndpoint(p, "post", "/db/:db/subscriptions", self.subscribeTimeSeries)
     self.registerEndpoint(p, "del", "/db/:db/subscriptions/:kw", self.deleteSubscriptions)
     self.registerEndpoint(p, "post", "/db/:db/query_follow", self.queryFollow)
-    self.registerEndpoint(p, "post", "/db/:db/query_current", self.queryCurrent)
+    self.registerEndpoint(p, "post", "/db/:db/query_current/:kw", self.queryCurrent)
     self.registerEndpoint(p, "post", "/db/:db/query_subscriptions", self.querySubscription)
 
 	if listener == nil {
