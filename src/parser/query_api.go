@@ -219,7 +219,7 @@ func init() {
 	}
 }
 
-func parseTimeString(t string) (*time.Time, error) {
+func ParseTimeString(t string) (*time.Time, error) {
 	submatches := time_regex.FindStringSubmatch(t)
 	if len(submatches) == 0 {
 		return nil, fmt.Errorf("%s isn't a valid time string", t)
@@ -272,7 +272,7 @@ func parseTime(value *Value) (int64, error) {
 		}
 
 		if value.Type == ValueString {
-			t, err := parseTimeString(value.Name)
+			t, err := ParseTimeString(value.Name)
 			if err != nil {
 				return 0, err
 			}

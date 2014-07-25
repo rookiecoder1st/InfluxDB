@@ -158,10 +158,10 @@ func (self *HttpServer) Serve(listener net.Listener) {
     // subscriptions
     self.registerEndpoint(p, "get", "/db/:db/subscriptions", self.listSubscriptions)
     self.registerEndpoint(p, "post", "/db/:db/subscriptions", self.subscribeTimeSeries)
+    self.registerEndpoint(p, "del", "/db/:db/subscriptions/:kw", self.deleteSubscriptions)
+    self.registerEndpoint(p, "post", "/db/:db/query_follow", self.queryFollow)
+    self.registerEndpoint(p, "post", "/db/:db/query_current", self.queryCurrent)
     self.registerEndpoint(p, "post", "/db/:db/query_subscriptions", self.querySubscription)
-    self.registerEndpoint(p, "post", "/db/:db/subscriptions/:id", self.deleteSubscriptions)
-    //self.registerEndpoint(p, "post", "/db/:db/query_follow", self.queryFollow)
-    //self.registerEndpoint(p, "post", "/db/:db/subscriptions", self.deleteSubscriptions)
 
 	if listener == nil {
 		self.startSsl(p)
@@ -306,6 +306,43 @@ func (self *HttpServer) sendCrossOriginHeader(w libhttp.ResponseWriter, r *libht
 	w.WriteHeader(libhttp.StatusOK)
 }
 
+func (self *HttpServer) doQuery(w libhttp.ResponseWriter, r *libhttp.Request, query string) {
+	db := r.URL.Query().Get(":db")
+	pretty := isPretty(r)
+
+	self.tryAsDbUserAndClusterAdmin(w, r, func(u User) (int, interface{}) {
+
+		precision, err := TimePrecisionFromString(r.URL.Query().Get("time_precision"))
+		if err != nil {
+			return libhttp.StatusBadRequest, err.Error()
+		}
+
+		var writer Writer
+		if r.URL.Query().Get("chunked") == "true" {
+			writer = &ChunkWriter{w, precision, false, pretty}
+		} else {
+			writer = &AllPointsWriter{map[string]*protocol.Series{}, w, precision, pretty}
+		}
+		seriesWriter := NewSeriesWriter(writer.yield)
+		err = self.coordinator.RunQuery(u, db, query, seriesWriter)
+		if err != nil {
+			if e, ok := err.(*parser.QueryError); ok {
+				return errorToStatusCode(err), e.PrettyPrint()
+			}
+			return errorToStatusCode(err), err.Error()
+		}
+
+		writer.done()
+		return -1, nil
+	})
+}
+
+func (self *HttpServer) query(w libhttp.ResponseWriter, r *libhttp.Request) {
+    query := r.URL.Query().Get("q")
+    self.doQuery(w, r, query)
+}
+
+/*
 func (self *HttpServer) query(w libhttp.ResponseWriter, r *libhttp.Request) {
 	query := r.URL.Query().Get("q")
 	db := r.URL.Query().Get(":db")
@@ -337,6 +374,7 @@ func (self *HttpServer) query(w libhttp.ResponseWriter, r *libhttp.Request) {
 		return -1, nil
 	})
 }
+*/
 
 func errorToStatusCode(err error) int {
 	switch err.(type) {
@@ -1132,15 +1170,6 @@ func (self *HttpServer) convertShardsToMap(shards []*cluster.ShardData) []interf
 	return result
 }
 
-type SubscriptionDetail struct {
-    Db          string `json:"db"`
-    UserName    string `json:"userName"`
-//    Kw          string  `json:"kw"`
-    Id          int    `json:"id"`
-    StartTime   int64  `json:"startTm"`
-    EndTime     int64  `json:"endTm"`
-}
-
 func (self *HttpServer) listSubscriptions(w libhttp.ResponseWriter, r *libhttp.Request) {
     db := r.URL.Query().Get(":db")
 
@@ -1154,13 +1183,11 @@ func (self *HttpServer) listSubscriptions(w libhttp.ResponseWriter, r *libhttp.R
     })
 }
 
-// Right now only supports for Unix time, switch for RFC3339
 type newSubscriptionInfo struct {
-//    Kws         []string `json:"kws"`
-    Ids         []int  `json:"ids"`
-    Duration    int    `json:"duration"`
-    StartTm     int64  `json:"startTm"`
-    EndTm       int64  `json:"endTm"`
+    Kws         []string `json:"kws"`
+    Duration    int      `json:"duration"`
+    StartTm     string   `json:"startTm"`
+    EndTm       string   `json:"endTm"`
 }
 
 func (self *HttpServer) subscribeTimeSeries(w libhttp.ResponseWriter, r *libhttp.Request) {
@@ -1190,25 +1217,33 @@ func (self *HttpServer) subscribeTimeSeries(w libhttp.ResponseWriter, r *libhttp
         }
 
         /*
+        //var t, tx *time.Time
         if strings.ContainsAny(newSubscription.StartTm, ":") {
-                t_start, err := time.Parse(RFC3339, newSubscription.StartTm)
-                if err != nil {
-                    fmt.Println("no chupe")
-                } else {
-                    startTime := time.Unix(newSubscription.StartTm, 0).Format(time.RFC3339)
-                }
+            t_start, err := time.Parse(time.RFC3339, newSubscription.StartTm).Unix()
+            fmt.Printf("start_t: %#v\n", t_start)
+            if err != nil {
+                fmt.Println("no chupe")
+            } else {
+                startTime := time.Unix(t_start, 0).Format(time.RFC3339)
+                fmt.Printf("starttime: %#v\n", startTime)
+            }
         }
-        if strings.ContainsAny(newSubscription.EndTm, "-") {
-                t_end, err := time.Parse(RFC3339, newSubscription.EndTm)
-                if err != nil {
-                    fmt.Println("no chupe")
-                } else {
-                    endTime := time.Unix(newSubscription.EndTm, 0).Format(time.RFC3339)
-                }
         */
 
-        for _, id := range newSubscription.Ids {
-            if err := self.userManager.SubscribeTimeSeries(db, username, id, newSubscription.Duration, newSubscription.StartTm, newSubscription.EndTm, false); err != nil {
+        start, err := parser.ParseTimeString(newSubscription.StartTm)
+        if err != nil {
+            return libhttp.StatusBadRequest, nil
+        }
+        startTm := start.Unix()
+
+        end, err := parser.ParseTimeString(newSubscription.EndTm)
+        if err != nil {
+            return libhttp.StatusBadRequest, nil
+        }
+        endTm := end.Unix()
+
+        for _, kw := range newSubscription.Kws {
+            if err := self.userManager.SubscribeTimeSeries(db, username, kw, newSubscription.Duration, startTm, endTm, false); err != nil {
                 log.Error("Cannot create subscription: %s", err)
                 return errorToStatusCode(err), err.Error()
             }
@@ -1219,13 +1254,9 @@ func (self *HttpServer) subscribeTimeSeries(w libhttp.ResponseWriter, r *libhttp
     })
 }
 
-type delSubscriptionInfo struct {
-    DelIds  []int `json:"delids"`
-}
-
 func (self *HttpServer) deleteSubscriptions(w libhttp.ResponseWriter, r *libhttp.Request) {
     db := r.URL.Query().Get(":db")
-    //id := r.URL.Query().Get(":id")
+    kw := r.URL.Query().Get(":kw")
 
     username, _, err := getUsernameAndPassword(r)
     if err != nil {
@@ -1235,45 +1266,74 @@ func (self *HttpServer) deleteSubscriptions(w libhttp.ResponseWriter, r *libhttp
     }
 
     self.tryAsClusterAdmin(w, r, func(u User) (int, interface{}) {
-        delSubscription := delSubscriptionInfo{}
-        body, err := ioutil.ReadAll(r.Body)
-        if err != nil {
-            return libhttp.StatusInternalServerError, err.Error()
-        }
-
-        err = json.Unmarshal(body, &delSubscription)
-        if err != nil {
-            return libhttp.StatusInternalServerError, err.Error()
-        }
-
-        /*
-        id, err := strconv.Atoi(id)
-        if err != nil {
-            return libhttp.StatusBadRequest, err.Error()
-        }
-        */
-
-        fmt.Println("chupee")
-        fmt.Printf("Values: %#v\n", delSubscription.DelIds)
-        for _, id := range delSubscription.DelIds {
-            fmt.Println(id)
-            if err := self.userManager.DeleteSubscriptions(db, username, id); err != nil {
-                return errorToStatusCode(err), err.Error()
-            }
+        if err := self.userManager.DeleteSubscriptions(db, username, kw); err != nil {
+            return errorToStatusCode(err), err.Error()
         }
         return libhttp.StatusOK, nil
     })
 }
 
-// Can bring back if want to allow for end time usage
-/*
-type querySub struct {
-   Ids []int `json:"ids"`
+type newQueryFollow struct {
+    Kw          string  `json:"kw"`
+	StartTime   string  `json:"startTime"`
+	EndTime     string  `json:"endTime"`
 }
-*/
 
-// My understanding is that when they give us an end time we want to just query until that time
-// And then we update the subscription latest time to that end time
+func (self *HttpServer) queryFollow(w libhttp.ResponseWriter, r *libhttp.Request) {
+    self.tryAsClusterAdmin(w, r, func(u User) (int, interface{}) {
+
+        newQf := newQueryFollow{}
+        body, err := ioutil.ReadAll(r.Body)
+        if err != nil {
+            return libhttp.StatusInternalServerError, err.Error()
+        }
+
+        err = json.Unmarshal(body, &newQf)
+        if err != nil {
+            return libhttp.StatusInternalServerError, err.Error()
+        }
+
+        start, err := parser.ParseTimeString(newQf.StartTime)
+        if err != nil {
+            return libhttp.StatusBadRequest, nil
+        }
+        end, err := parser.ParseTimeString(newQf.EndTime)
+        if err != nil {
+            return libhttp.StatusBadRequest, nil
+        }
+
+        startTm := start.Unix()
+        endTm := end.Unix()
+
+        startT := strconv.FormatInt(startTm, 10)
+        endT := strconv.FormatInt(endTm, 10)
+
+        query := "select value from " + newQf.Kw + " where time > " + startT + " and time < " + endT
+        self.doQuery(w, r, query)
+
+        ticker := time.NewTicker(time.Second * 1)
+        go func() {
+            for t := range ticker.C {
+                now := strconv.FormatInt(t.Unix(), 10)
+                query := "select value from " + newQf.Kw + " where time > " + now + " and time < " + endT
+                self.doQuery(w, r, query)
+                if time.Now().Unix() < endTm {
+                    break
+                }
+            }
+        }()
+        ticker.Stop()
+
+        return libhttp.StatusOK, nil
+    })
+}
+
+func (self *HttpServer) queryCurrent(w libhttp.ResponseWriter, r *libhttp.Request) {
+    kw := r.URL.Query().Get(":kw")
+    query := "select value from " + kw + " where limit = 1"
+    self.doQuery(w, r, query)
+}
+
 func (self *HttpServer) querySubscription(w libhttp.ResponseWriter, r *libhttp.Request) {
     db := r.URL.Query().Get(":db")
     pretty := isPretty(r)
@@ -1307,10 +1367,8 @@ func (self *HttpServer) querySubscription(w libhttp.ResponseWriter, r *libhttp.R
        for _, s := range subs {
             start_tm_str := strconv.FormatInt(s.Start, 10)
             end_tm_str := strconv.FormatInt(s.End, 10)
-            fmt.Println(end_tm_str)
 
-            query := "select * from /.*/ where time > " + start_tm_str// + " and time < " + end_tm_str
-//            query := "select value from " + s.Kw + "where time > " + start_tm_str// + " and time < " + end_tm_str
+            query := "select value from " + s.Kw + "where time > " + start_tm_str + " and time < " + end_tm_str
 
 		    err = self.coordinator.RunQuery(u, db, query, seriesWriter)
 		    if err != nil {
@@ -1322,8 +1380,7 @@ func (self *HttpServer) querySubscription(w libhttp.ResponseWriter, r *libhttp.R
 		    writer.done()
 
             s.Start = time.Now().Unix()
-//            if err := self.userManager.SubscribeTimeSeries(db, username, s.Kw, s.Duration, s.Start, s.End, false); err != nil {
-            if err := self.userManager.SubscribeTimeSeries(db, username, s.Id, s.Duration, s.Start, s.End, false); err != nil {
+            if err := self.userManager.SubscribeTimeSeries(db, username, s.Kw, s.Duration, s.Start, s.End, false); err != nil {
                 log.Error("Cannot create subscription: %s", err)
                 return errorToStatusCode(err), err.Error()
             }
