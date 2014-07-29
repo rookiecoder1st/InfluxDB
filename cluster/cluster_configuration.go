@@ -63,6 +63,9 @@ type ClusterConfiguration struct {
 	createDatabaseLock         sync.RWMutex
 	DatabaseReplicationFactors map[string]struct{}
 	usersLock                  sync.RWMutex
+    subscriptionsLock          sync.RWMutex
+//    subscriptions              map[string]map[int]*Subscription
+    subscriptions              map[string]map[string]*Subscription
 	clusterAdmins              map[string]*ClusterAdmin
 	dbUsers                    map[string]map[string]*DbUser
 	servers                    []*ClusterServer
@@ -110,6 +113,8 @@ func NewClusterConfiguration(
 		DatabaseReplicationFactors: make(map[string]struct{}),
 		clusterAdmins:              make(map[string]*ClusterAdmin),
 		dbUsers:                    make(map[string]map[string]*DbUser),
+//        subscriptions:              make(map[string]map[int]*Subscription),
+        subscriptions:              make(map[string]map[string]*Subscription),
 		continuousQueries:          make(map[string][]*ContinuousQuery),
 		ParsedContinuousQueries:    make(map[string]map[uint32]*parser.SelectQuery),
 		servers:                    make([]*ClusterServer, 0),
@@ -410,8 +415,11 @@ func (self *ClusterConfiguration) DropDatabase(name string) error {
 
 	self.usersLock.Lock()
 	defer self.usersLock.Unlock()
-
 	delete(self.dbUsers, name)
+
+    self.subscriptionsLock.Lock()
+    defer self.subscriptionsLock.Unlock()
+    delete(self.subscriptions, name)
 
 	_, err := self.MetaStore.DropDatabase(name)
 	if err != nil {
@@ -513,6 +521,28 @@ func (self *ClusterConfiguration) GetLocalConfiguration() *configuration.Configu
 	return self.config
 }
 
+func (self *ClusterConfiguration) MakeSubscription(db, username, kw string) *Subscription {
+//func (self *ClusterConfiguration) MakeSubscription(db, username string, id int) *Subscription {
+    self.subscriptionsLock.RLock()
+    defer self.subscriptionsLock.RUnlock()
+
+//    return &Subscription{db, username, id, 0, 0, 0, true}
+    return &Subscription{db, username, kw, 0, 0, 0, true}
+}
+
+func (self *ClusterConfiguration) GetSubscriptions(u common.User, db string) []*Subscription {
+    self.subscriptionsLock.RLock()
+    defer self.subscriptionsLock.RUnlock()
+
+    subscriptions := self.subscriptions[db]
+    subscriptionList := make([]*Subscription, 0, len(subscriptions))
+    for subscription := range subscriptions {
+        thesubscription := subscriptions[subscription]
+        subscriptionList = append(subscriptionList, thesubscription)
+    }
+    return subscriptionList
+}
+
 func (self *ClusterConfiguration) GetDbUsers(db string) []common.User {
 	self.usersLock.RLock()
 	defer self.usersLock.RUnlock()
@@ -537,6 +567,76 @@ func (self *ClusterConfiguration) GetDbUser(db, username string) *DbUser {
 	return dbUsers[username]
 }
 
+func (self *ClusterConfiguration) SaveSubscriptions(s *Subscription) {
+    self.subscriptionsLock.Lock()
+    defer self.subscriptionsLock.Unlock()
+
+    db := s.GetDb()
+    subscriptions := self.subscriptions[db]
+    if s.GetIsDeleted() {
+        if subscriptions == nil {
+            return
+        }
+        delete(subscriptions, s.GetKw())
+//        delete(subscriptions, s.GetId())
+    } else {
+        if subscriptions == nil {
+//            subscriptions = map[int]*Subscription{}
+            subscriptions = map[string]*Subscription{}
+            self.subscriptions[db] = subscriptions
+        }
+//        subscriptions[s.GetId()] = s
+        subscriptions[s.GetKw()] = s
+
+
+        //dur := s.GetDuration()
+        //fmt.Println(dur_int)
+        //dur_str := strconv.Itoa(dur_int)
+        //fmt.Println(dur_str)
+        //dur_dur, err := time.ParseDuration(dur_str + "m")
+        /*
+        fmt.Printf("duration: %#v\n", dur_dur)
+        if err != nil {
+            fmt.Printf("Error received\n")
+        }
+
+        f := func() {
+            fmt.Printf("id within f: %#v", s.GetId())
+            delete(subscriptions, s.GetId())
+        }
+
+        fmt.Printf("finally here\n")
+        timer := time.AfterFunc(dur_dur, f)
+        defer timer.Stop()
+        dur_str := strconv.Itoa(dur)
+        dur_dur, _ := time.ParseDuration(dur_str + "m")
+        timer := time.NewTimer(time.Second * dur_dur)
+        <-timer.C
+        delete(subscriptions, s.GetId())
+        fmt.Printf("f: \n")
+        */
+    }
+    /*
+    dur_int := s.GetDuration()
+    dur_str := strconv.Itoa(dur_int)
+    dur_dur, err := time.ParseDuration(dur_str + "m")
+    fmt.Printf("duration: %#v\n", dur_dur)
+    if err != nil {
+        fmt.Printf("Error received\n")
+    }
+
+    f := func() {
+        fmt.Printf("id within f: %#v", s.GetId())
+        delete(subscriptions, s.GetId())
+    }
+
+    fmt.Printf("finally here\n")
+    timer := time.AfterFunc(dur_dur, f)
+    defer timer.Stop()
+    fmt.Printf("f: %#v\n", f)
+    */
+}
+
 func (self *ClusterConfiguration) SaveDbUser(u *DbUser) {
 	self.usersLock.Lock()
 	defer self.usersLock.Unlock()
@@ -554,6 +654,21 @@ func (self *ClusterConfiguration) SaveDbUser(u *DbUser) {
 		self.dbUsers[db] = dbUsers
 	}
 	dbUsers[u.GetName()] = u
+}
+
+func (self *ClusterConfiguration) ChangeSubscription(s *Subscription) error {
+    self.subscriptionsLock.Lock()
+    defer self.subscriptionsLock.Unlock()
+
+    subscriptions := self.subscriptions
+    if subscriptions == nil {
+        return fmt.Errorf("")
+    }
+    // To change I think you need user, db, AND id
+    //subscription
+
+    //subscription.qTime = time.Now().Unix()
+    return nil
 }
 
 func (self *ClusterConfiguration) ChangeDbUserPassword(db, username, hash string) error {

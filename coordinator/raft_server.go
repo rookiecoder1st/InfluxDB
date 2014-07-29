@@ -198,10 +198,28 @@ func (s *RaftServer) DropDatabase(name string) error {
 	return err
 }
 
+func (s *RaftServer) DeleteSubscriptions(sub *cluster.Subscription) error {
+    command := NewDeleteSubscriptionsCommand(sub)
+    _, err := s.doOrProxyCommand(command)
+    return err
+}
+
+func (s *RaftServer) SaveSubscriptions(sub *cluster.Subscription) error {
+    command := NewSaveSubscriptionsCommand(sub)
+    _, err := s.doOrProxyCommand(command)
+    return err
+}
+
 func (s *RaftServer) SaveDbUser(u *cluster.DbUser) error {
 	command := NewSaveDbUserCommand(u)
 	_, err := s.doOrProxyCommand(command)
 	return err
+}
+
+func (s *RaftServer) ChangeSubscription(sub *cluster.Subscription) error {
+    command := NewChangeSubscriptionCommand(sub)
+    _, err := s.doOrProxyCommand(command)
+    return err
 }
 
 func (s *RaftServer) ChangeDbUserPassword(db, username string, hash []byte) error {

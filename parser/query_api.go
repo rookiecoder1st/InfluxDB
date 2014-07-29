@@ -273,7 +273,7 @@ func parseTime(value *Value) (int64, error) {
 		}
 
 		if value.Type == ValueString {
-			t, err := parseTimeString(value.Name)
+			t, err := ParseTimeString(value.Name)
 			if err != nil {
 				return 0, err
 			}
