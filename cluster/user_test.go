@@ -45,13 +45,13 @@ func (self *UserSuite) TestProperties(c *C) {
 	c.Assert(dbUser.isValidPwd("password"), Equals, true)
 	c.Assert(dbUser.isValidPwd("password1"), Equals, false)
 
-    // subscription testing
-    subscription := &Subscription{"mydb", "root", 10, 5, 1388534440, 1388534455}
-    c.Assert(subscription.GetDb(), Equals, "mydb")
-    c.Assert(subscription.GetUser(), Equals, "root")
-    c.Assert(subscription.GetId(), Equals, 10)
-    c.Assert(subscription.GetDuration(), Equals, 5)
-    c.Assert(subscription.GetStartTime(), Equals, 1388534440)
-    c.Assert(subscription.GetEndTime(), Equals, 1388534455)
-    c.Assert(subscription.GetIsDeleted(), Equals, false)
+	// subscription testing
+	subscription := &Subscription{"mydb", "root", 10, 5, 1388534440, 1388534455}
+	c.Assert(subscription.GetDb(), Equals, "mydb")
+	c.Assert(subscription.GetUser(), Equals, "root")
+	c.Assert(subscription.GetId(), Equals, 10)
+	c.Assert(subscription.GetDuration(), Equals, 5)
+	c.Assert(subscription.GetStartTime(), Equals, 1388534440)
+	c.Assert(subscription.GetEndTime(), Equals, 1388534455)
+	c.Assert(subscription.GetIsDeleted(), Equals, false)
 }

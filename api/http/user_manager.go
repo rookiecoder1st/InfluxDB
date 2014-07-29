@@ -1,8 +1,8 @@
 package http
 
 import (
-	"github.com/influxdb/influxdb/common"
 	"github.com/influxdb/influxdb/cluster"
+	"github.com/influxdb/influxdb/common"
 )
 
 type UserManager interface {
@@ -33,12 +33,12 @@ type UserManager interface {
 	// isn't a db admin or cluster admin or if user isn't a db user
 	// for the given db
 	SetDbAdmin(requester common.User, db, username string, isAdmin bool) error
-    // Save a user's subscription
-//    SubscribeTimeSeries(db, username string, id int, duration int, start, end int64, isDeleted bool) error
-    SubscribeTimeSeries(db, username, kw string, duration int, start, end int64, isDeleted bool) error
-    // List the subscriptions currently available
-    ListSubscriptions(requester common.User, db string) ([]*cluster.Subscription, error)
-    // Delete subscriptions with id's from given list
-//    DeleteSubscriptions(db, username string, id int) error
-    DeleteSubscriptions(db, username, kw string) error
+	// Save a user's subscription
+	//    SubscribeTimeSeries(db, username string, id int, duration int, start, end int64, isDeleted bool) error
+	SubscribeTimeSeries(db, username, kw string, duration int, start, end int64, isDeleted bool) error
+	// List the subscriptions currently available
+	ListSubscriptions(requester common.User, db string) ([]*cluster.Subscription, error)
+	// Delete subscriptions with id's from given list
+	//    DeleteSubscriptions(db, username string, id int) error
+	DeleteSubscriptions(db, username, kw string) error
 }
