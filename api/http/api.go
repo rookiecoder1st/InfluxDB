@@ -135,7 +135,6 @@ func (self *HttpServer) Serve(listener net.Listener) {
 	self.conn = listener
 	p := pat.New()
 
-	fmt.Printf("REACHED SERVE!\n")
 	// Run the given query and return an array of series or a chunked response
 	// with each batch of points we get back
 	self.registerEndpoint(p, "get", "/db/:db/series", self.query)
@@ -373,18 +372,10 @@ func (self *HttpServer) doQuery(w libhttp.ResponseWriter, r *libhttp.Request, qu
 
 func (self *HttpServer) query(w libhttp.ResponseWriter, r *libhttp.Request) {
 	query := r.URL.Query().Get("q")
-	fmt.Printf("Query: %v\n", query)
 	if strings.Contains(query, "Query") == true {
 		query, _ = QueryHandler(query)
-		/*
-			if err != nil {
-				fmt.Println("Query has a fundamental error in it! Please try again.")
-				return
-			}
-		*/
 	}
 
-	//fmt.Printf("Query: %v\n", query)
 	self.doQuery(w, r, query)
 }
 
