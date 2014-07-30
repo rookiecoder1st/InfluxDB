@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"regexp"
 
 	log "code.google.com/p/log4go"
 	"github.com/bmizerany/pat"
@@ -23,6 +24,35 @@ import (
 	"github.com/influxdb/influxdb/coordinator"
 	"github.com/influxdb/influxdb/parser"
 	"github.com/influxdb/influxdb/protocol"
+)
+
+const (
+	idQ = "QI"
+	idQuery = "Query-Ids"
+	keyQ = "QK"
+	keyQuery = "Query-Keywords"
+	tsQ = "QT"
+	tsQuery = "Query-Timeseries"
+	curQ = "QC"
+	curQuery = "Query-Current"
+	// folQ = "QF"   // Not sure if this works or not
+	folQuery = "Query-Follow"
+	scQ = "SC"
+	scQuery = "Sub-Current"
+	stQ = "ST"
+	stQuery = "Sub-Timeseries"
+	unsubQ = "UN"
+	unsubQuery = "Unsubscribe"
+	qsubQ = "QS"
+	qsubQuery = "Query-Sub"
+	year = "[0-9]{4,4}"
+	month = "[0-9]{2,2}"
+	day = "[0-9]{2,2}"
+	hour = "[0-9]{2,2}"
+	min = "[0-9]{2,2}"
+	sec = "[0-9]{2,2}"
+	ymdhmsz = year + "-" + month + "-" + day + " " + hour + ":" + min + ":" + sec
+	mdyhmsz = month + "-" + day + "-" + year + " " + hour + ":" + min + ":" + sec
 )
 
 type HttpServer struct {
@@ -105,6 +135,7 @@ func (self *HttpServer) Serve(listener net.Listener) {
 	self.conn = listener
 	p := pat.New()
 
+	fmt.Printf("REACHED SERVE!\n")
 	// Run the given query and return an array of series or a chunked response
 	// with each batch of points we get back
 	self.registerEndpoint(p, "get", "/db/:db/series", self.query)
@@ -342,13 +373,18 @@ func (self *HttpServer) doQuery(w libhttp.ResponseWriter, r *libhttp.Request, qu
 
 func (self *HttpServer) query(w libhttp.ResponseWriter, r *libhttp.Request) {
 	query := r.URL.Query().Get("q")
-	if strings.Contains(query, "Query") != true {
-		query, err = QueryHandler(query)
+	fmt.Printf("Query: %v\n", query)
+	if strings.Contains(query, "Query") == true {
+		query, _ = QueryHandler(query)
+		/*
 		if err != nil {
 			fmt.Println("Query has a fundamental error in it! Please try again.")
 			return
 		}
+		*/
 	}
+	
+	//fmt.Printf("Query: %v\n", query)
 	self.doQuery(w, r, query)
 }
 
@@ -360,7 +396,7 @@ func QueryHandler(influxQueryuery string) (string, error) {
 		if len(tokenizedQuery) == 1 {
 			return "select * from /.*/", nil
 		} else {
-			influxStartQ := "select * from " 
+			influxQuery = "select * from " 
 			keywordBuffer := 0	
 			influxEndQ := ""
 			starttime := ""
@@ -413,7 +449,7 @@ func QueryHandler(influxQueryuery string) (string, error) {
 			buffer += 2
 		} else {
 			fmt.Println("No start-time provided. Query-Timeseries requires at least a startime.")
-			return []*Series{}, nil 
+			return "", nil 
 		}
 		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 4] + " " + tokenizedQuery[len(tokenizedQuery) - 3]) {
 			influxEndQ = " where time > '" + starttime + "' and time < '" + tokenizedQuery[len(tokenizedQuery) - 4] + " " + tokenizedQuery[len(tokenizedQuery) - 3] + "'"
@@ -546,19 +582,71 @@ func QueryHandler(influxQueryuery string) (string, error) {
 		}
 		*/
 		return influxQuery, nil
-	case scQuery, scQ:
-		return retResults, nil
-	case stQuery, stQ:
-		return retResults, nil
-	case unsubQuery, unsubQ:
-		return retResults, nil
-	case qsubQuery, qsubQ:
-		return retResults, nil
 	default:
-		log.Fatal("%s is an unrecognized query type - see documentation for allowed query types", influxQueryuery)
+		fmt.Printf("%s is an unrecognized query type - see documentation for allowed query types", influxQueryuery)
+		return "", nil
 	} 
 	
 	return "", nil
+}
+
+func isDateTime(datetime string) (bool) { 
+	date := strings.Split(datetime, " ")[0]
+	time := strings.Split(datetime, " ")[1]
+	ymd := strings.Split(date, "-")
+	hms := strings.Split(time, ":")
+	match, _ := regexp.MatchString(ymdhmsz, datetime) 
+	if match == true {
+		if isValidDate(ymd, true) && isValidTime(hms) {
+			return true
+		}
+	} else {
+		match, _ := regexp.MatchString(mdyhmsz, datetime)
+		if match == true {
+			if isValidDate(ymd, false) && isValidTime(hms) {
+				return true
+        		}
+		}
+	}       
+	return false 
+}
+
+// If YMD format is passed the isymd is true, otherwise false.
+
+func isValidDate(date []string, isymd bool) (bool) {
+	intDates := []int64{}
+	for _, val := range date {
+		intDate, err := strconv.ParseInt(val, 10, 32)
+		intDates = append(intDates, intDate)
+		if err != nil {
+			return false
+		}
+	}
+	if (isymd) {
+		if (intDates[1] >= 1 && intDates[1] <= 12 && intDates[2] >= 1 && intDates[2] <= 31) {
+			return true
+		}
+	} else {
+		if (intDates[0] >= 1 && intDates[0] <= 12 && intDates[1] >= 1 && intDates[1] <= 31) {
+			return true
+		}
+	}
+	return false
+}
+
+func isValidTime(time []string) (bool) {
+	intTimes := []int64{}
+	for _, val := range time {
+		intTime, err := strconv.ParseInt(val, 10, 32)
+		intTimes = append(intTimes, intTime)
+		if err != nil {
+			return false
+		}
+	} 
+	if intTimes[0] >= 0 && intTimes[0] <= 23 && intTimes[1] >= 0 && intTimes[1] <= 59 && intTimes[2] >= 0 && intTimes[2] <= 59 {
+		return true
+	}
+	return false
 }
 
 /*
