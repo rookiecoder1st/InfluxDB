@@ -58,3 +58,6 @@ config.toml
 /admin
 /admin/
 /data/
+
+# random
+ts_data.txt
