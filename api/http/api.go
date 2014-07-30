@@ -342,11 +342,18 @@ func (self *HttpServer) doQuery(w libhttp.ResponseWriter, r *libhttp.Request, qu
 
 func (self *HttpServer) query(w libhttp.ResponseWriter, r *libhttp.Request) {
 	query := r.URL.Query().Get("q")
+	if strings.Contains(query, "Query") != true {
+		query, err = QueryHandler(query)
+		if err != nil {
+			fmt.Println("Query has a fundamental error in it! Please try again.")
+			return
+		}
+	}
 	self.doQuery(w, r, query)
 }
 
-func QueryHandler(rgmQuery string) (string, error) {
-	tokenizedQuery := strings.Fields(rgmQuery)
+func QueryHandler(influxQueryuery string) (string, error) {
+	tokenizedQuery := strings.Fields(influxQueryuery)
 	influxQuery := ""
 	switch tokenizedQuery[0] {
 	case idQuery, idQ:
@@ -387,132 +394,85 @@ func QueryHandler(rgmQuery string) (string, error) {
 				}
 				influxQuery = influxQuery + "\""
 				if regexfound == true {
-					influxQuery = strings.Replace(rgmQ, "\"", "/", 2)
-					influxQuery = strings.Replace(rgmQ, "/ ", "/", 1)	
-					influxQuery = strings.Replace(rgmQ, " /", "/", -1)
-					influxQuery = strings.Replace(rgmQ, "/", " /", 1)
+					influxQuery = strings.Replace(influxQuery, "\"", "/", 2)
+					influxQuery = strings.Replace(influxQuery, "/ ", "/", 1)	
+					influxQuery = strings.Replace(influxQuery, " /", "/", -1)
+					influxQuery = strings.Replace(influxQuery, "/", " /", 1)
 				}
 			}
 			influxQuery = influxQuery + influxEndQ
 		}
-		return retResults, nil
+		return influxQuery, nil
 	case tsQuery, tsQ:
-		rgmQEnd := ""
+		influxEndQ := ""
 		buffer := 0
 		starttime := ""
 		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1]) {
 			starttime = tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1]
-			rgmQEnd = " where time > '" + starttime + "'"
+			influxEndQ = " where time > '" + starttime + "'"
 			buffer += 2
 		} else {
 			fmt.Println("No start-time provided. Query-Timeseries requires at least a startime.")
 			return []*Series{}, nil 
 		}
 		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 4] + " " + tokenizedQuery[len(tokenizedQuery) - 3]) {
-			rgmQEnd = " where time > '" + starttime + "' and time < '" + tokenizedQuery[len(tokenizedQuery) - 4] + " " + tokenizedQuery[len(tokenizedQuery) - 3] + "'"
+			influxEndQ = " where time > '" + starttime + "' and time < '" + tokenizedQuery[len(tokenizedQuery) - 4] + " " + tokenizedQuery[len(tokenizedQuery) - 3] + "'"
 			buffer += 2
 		} 
-		rgmQ := "select * from "
-		rgmQ = rgmQ + "\""
+		influxQuery := "select * from "
+		influxQuery = influxQuery + "\""
 		regexfound := false
 		for i := 1; i < len(tokenizedQuery) - buffer; i++ {
 			if strings.EqualFold(tokenizedQuery[i], "*") {
 				regexfound = true
 			} else {
-				rgmQ = rgmQ + tokenizedQuery[i]
+				influxQuery = influxQuery + tokenizedQuery[i]
 			}
 			if i < len(tokenizedQuery) - buffer - 1 {
-				rgmQ = rgmQ + " "
+				influxQuery = influxQuery + " "
 			}
 		
 		}
-		rgmQ = rgmQ + "\""
+		influxQuery = influxQuery + "\""
 		if regexfound == true {
-			rgmQ = strings.Replace(rgmQ, "\"", "/", 2)
-			rgmQ = strings.Replace(rgmQ, "/ ", "/", 1)	
-			rgmQ = strings.Replace(rgmQ, " /", "/", -1)
-			rgmQ = strings.Replace(rgmQ, "/", " /", 1)
+			influxQuery = strings.Replace(influxQuery, "\"", "/", 2)
+			influxQuery = strings.Replace(influxQuery, "/ ", "/", 1)	
+			influxQuery = strings.Replace(influxQuery, " /", "/", -1)
+			influxQuery = strings.Replace(influxQuery, "/", " /", 1)
 		}
-		rgmQ = rgmQ + rgmQEnd
-		result, err := client.Query(rgmQ)
-		if err != nil {
-			fmt.Println("Invalid Query!")
-			return retResults, err
-		}
-		for _, series := range result {
-			retResults = append(retResults, series)
-		}
-		numResults := len(retResults)
-		if numResults == 1 {
-			fmt.Printf("201, %v match found.\n", numResults)
-		} else if numResults > 1 {
-			fmt.Printf("202, %v matches found.\n", numResults)
-		} else if numResults == 0 {
-			fmt.Printf("203, %v matches found.\n", numResults)
-		} else {
-			fmt.Printf("Possible error/warning!\n")
-		}
-		for _, series := range retResults {
-			for _, point := range series.GetPoints() {
-				fmt.Printf("%v\t %v\t %v\n", series.GetName(), point[0], point[2])
-			}
-		}
-		return retResults, nil
+		influxQuery = influxQuery + influxEndQ
+		return influxQuery, nil
 	case curQuery, curQ:
-		rgmQEnd := ""
+		influxEndQ := ""
 		buffer := 0
 		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1]) {
-			rgmQEnd = rgmQEnd + " where time < '" + tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1] + "'"
+			influxEndQ = influxEndQ + " where time < '" + tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1] + "'"
 			buffer += 2
 		} 
-		rgmQ := "select * from "
-		rgmQ = rgmQ + "\""
+		influxQuery := "select * from \""
 		regexfound := false
 		for i := 1; i < len(tokenizedQuery) - buffer; i++ {
 			if strings.EqualFold(tokenizedQuery[i], "*") {
 				regexfound = true
 			} else {
-				rgmQ = rgmQ + tokenizedQuery[i]
+				influxQuery = influxQuery + tokenizedQuery[i]
 			}
 			if i < len(tokenizedQuery) - buffer - 1 {
-				rgmQ = rgmQ + " "
+				influxQuery = influxQuery + " "
 			}
 		}
-		rgmQ = rgmQ + "\""
+		influxQuery = influxQuery + "\""
 		if regexfound == true {
-			rgmQ = strings.Replace(rgmQ, "\"", "/", 2)
-			rgmQ = strings.Replace(rgmQ, "/ ", "/", 1)	
-			rgmQ = strings.Replace(rgmQ, " /", "/", -1)
-			rgmQ = strings.Replace(rgmQ, "/", " /", 1)
+			influxQuery = strings.Replace(influxQuery, "\"", "/", 2)
+			influxQuery = strings.Replace(influxQuery, "/ ", "/", 1)	
+			influxQuery = strings.Replace(influxQuery, " /", "/", -1)
+			influxQuery = strings.Replace(influxQuery, "/", " /", 1)
 		}
-		rgmQ = rgmQ + rgmQEnd + " limit 1"
-		result, err := client.Query(rgmQ)
-		if err != nil {
-			fmt.Println("Invalid Query!")
-			return retResults, err
-		}
-		for _, series := range result {
-			retResults = append(retResults, series)
-		}
-		numResults := len(retResults)
-		if numResults >= 1 {
-			fmt.Printf("202, %v match found.\n", numResults)
-		} else if numResults == 0 {
-			fmt.Printf("203, %v matches found.\n", numResults)
-			return retResults, nil
-		} else {
-			fmt.Printf("Possible error/warning!\n")
-			return []*Series{}, nil
-		}
-		for _, series := range retResults {
-			for _, maxPoint := range series.GetPoints() {
-				fmt.Printf("%v\t %v\t %v\t\n", series.GetName(), maxPoint[0], maxPoint[2])
-			}
-		}
-		return retResults, nil
+		influxQuery = influxQuery + influxEndQ + " limit 1"
+		return influxQuery, nil
 	case folQuery:
-		rgmQend := ""
-		rgmQstart := ""	
+		influxEndQ := ""
+		influxStartQ := ""	
 		buffer := 0
 		endtime := ""
 		starttime := ""
@@ -521,58 +481,36 @@ func QueryHandler(rgmQuery string) (string, error) {
 			buffer += 2
 		} else {
 			fmt.Println("Must provide a start-time for Follow-Query!")
-			return []*Series{}, nil
+			return "", nil
 		}
 		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 4] + " " + tokenizedQuery[len(tokenizedQuery) - 3]) {
 			endtime = starttime
 			starttime = tokenizedQuery[len(tokenizedQuery) - 4] + " " + tokenizedQuery[len(tokenizedQuery) - 3]
-			rgmQend = " and time < '" + endtime + "'"
+			influxEndQ = " and time < '" + endtime + "'"
 			buffer += 2
 		} 
-		rgmQstart = " where time > '" + starttime + "'"
-		rgmQBase := "select * from "
-		rgmQBase = rgmQBase + "\""
+		influxStartQ = " where time > '" + starttime + "'"
+		influxQueryBase := "select * from \""
 		regexfound := false
 		for i := 1; i < len(tokenizedQuery) - buffer; i++ {
 			if strings.EqualFold(tokenizedQuery[i], "*") {
 				regexfound = true
 			} else {
-				rgmQBase = rgmQBase + tokenizedQuery[i]
+				influxQueryBase = influxQueryBase + tokenizedQuery[i]
 			}
 			if i < len(tokenizedQuery) - buffer - 1 {
-				rgmQBase = rgmQBase + " "
+				influxQueryBase = influxQueryBase + " "
 			}
 		}
-		rgmQBase = rgmQBase + "\""
+		influxQueryBase = influxQueryBase + "\""
 		if regexfound == true {
-			rgmQBase = strings.Replace(rgmQBase, "\"", "/", 2)
-			rgmQBase = strings.Replace(rgmQBase, "/ ", "/", 1)	
-			rgmQBase = strings.Replace(rgmQBase, " /", "/", -1)
-			rgmQBase = strings.Replace(rgmQBase, "/", " /", 1)
+			influxQueryBase = strings.Replace(influxQueryBase, "\"", "/", 2)
+			influxQueryBase = strings.Replace(influxQueryBase, "/ ", "/", 1)	
+			influxQueryBase = strings.Replace(influxQueryBase, " /", "/", -1)
+			influxQueryBase = strings.Replace(influxQueryBase, "/", " /", 1)
 		}
-		rgmQ := rgmQBase + rgmQstart + rgmQend
-		result, err := client.Query(rgmQ)
-		if err != nil {
-			fmt.Println("Invalid Query!")
-			return retResults, err
-		}
-		for _, series := range result {
-			retResults = append(retResults, series)
-		}
-		numResults := len(retResults)
-		if numResults == 1 {
-			fmt.Printf("201, %v match found.\n", numResults)
-		} else if numResults > 1 {
-			fmt.Printf("202, %v matches found.\n", numResults)
-		} else if numResults == 0 {
-			fmt.Printf("200, %v matches found.\n", numResults)
-		} else {
-			fmt.Printf("Possible error/warning!\n")
-		}
-		for _, series := range retResults {
-			fmt.Printf("Point: %v\n", series.GetPoints())
-		}
-		
+		influxQuery := influxQueryBase + influxStartQ + influxEndQ
+		/*
 		endt := time.Now()	
 		if endtime != "" {
 			enddatestring := strings.Split(tokenizedQuery[len(tokenizedQuery) - 2], "-")
@@ -592,9 +530,9 @@ func QueryHandler(rgmQuery string) (string, error) {
 		
 		for (time.Now().Before(endt) || (endtime == "")) {
 			starttimearray := strings.Split(time.Now().String(), " ")
-			rgmQstart = " where time > '" + starttimearray[0] + " " + starttimearray[1] + "'"
-			rgmQ := rgmQBase + rgmQstart + rgmQend
-			newResults, err := client.Query(rgmQ)
+			influxStartQ = " where time > '" + starttimearray[0] + " " + starttimearray[1] + "'"
+			influxQuery := influxQueryBase + influxStartQ + influxEndQ
+			newResults, err := client.Query(influxQuery)
 			if err != nil {
 				fmt.Println("Invalid Query!")
 				return retResults, err
@@ -606,8 +544,8 @@ func QueryHandler(rgmQuery string) (string, error) {
 			}
 			newResults = []*Series{}
 		}
-		
-		return retResults, nil
+		*/
+		return influxQuery, nil
 	case scQuery, scQ:
 		return retResults, nil
 	case stQuery, stQ:
@@ -617,10 +555,10 @@ func QueryHandler(rgmQuery string) (string, error) {
 	case qsubQuery, qsubQ:
 		return retResults, nil
 	default:
-		log.Fatal("%s is an unrecognized query type - see documentation for allowed query types", rgmQuery)
+		log.Fatal("%s is an unrecognized query type - see documentation for allowed query types", influxQueryuery)
 	} 
 	
-	return retResults, nil
+	return "", nil
 }
 
 /*
