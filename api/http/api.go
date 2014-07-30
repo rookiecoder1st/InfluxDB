@@ -12,10 +12,10 @@ import (
 	"net"
 	libhttp "net/http"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
-	"regexp"
 
 	log "code.google.com/p/log4go"
 	"github.com/bmizerany/pat"
@@ -27,32 +27,32 @@ import (
 )
 
 const (
-	idQ = "QI"
-	idQuery = "Query-Ids"
-	keyQ = "QK"
+	idQ      = "QI"
+	idQuery  = "Query-Ids"
+	keyQ     = "QK"
 	keyQuery = "Query-Keywords"
-	tsQ = "QT"
-	tsQuery = "Query-Timeseries"
-	curQ = "QC"
+	tsQ      = "QT"
+	tsQuery  = "Query-Timeseries"
+	curQ     = "QC"
 	curQuery = "Query-Current"
 	// folQ = "QF"   // Not sure if this works or not
-	folQuery = "Query-Follow"
-	scQ = "SC"
-	scQuery = "Sub-Current"
-	stQ = "ST"
-	stQuery = "Sub-Timeseries"
-	unsubQ = "UN"
+	folQuery   = "Query-Follow"
+	scQ        = "SC"
+	scQuery    = "Sub-Current"
+	stQ        = "ST"
+	stQuery    = "Sub-Timeseries"
+	unsubQ     = "UN"
 	unsubQuery = "Unsubscribe"
-	qsubQ = "QS"
-	qsubQuery = "Query-Sub"
-	year = "[0-9]{4,4}"
-	month = "[0-9]{2,2}"
-	day = "[0-9]{2,2}"
-	hour = "[0-9]{2,2}"
-	min = "[0-9]{2,2}"
-	sec = "[0-9]{2,2}"
-	ymdhmsz = year + "-" + month + "-" + day + " " + hour + ":" + min + ":" + sec
-	mdyhmsz = month + "-" + day + "-" + year + " " + hour + ":" + min + ":" + sec
+	qsubQ      = "QS"
+	qsubQuery  = "Query-Sub"
+	year       = "[0-9]{4,4}"
+	month      = "[0-9]{2,2}"
+	day        = "[0-9]{2,2}"
+	hour       = "[0-9]{2,2}"
+	min        = "[0-9]{2,2}"
+	sec        = "[0-9]{2,2}"
+	ymdhmsz    = year + "-" + month + "-" + day + " " + hour + ":" + min + ":" + sec
+	mdyhmsz    = month + "-" + day + "-" + year + " " + hour + ":" + min + ":" + sec
 )
 
 type HttpServer struct {
@@ -377,13 +377,13 @@ func (self *HttpServer) query(w libhttp.ResponseWriter, r *libhttp.Request) {
 	if strings.Contains(query, "Query") == true {
 		query, _ = QueryHandler(query)
 		/*
-		if err != nil {
-			fmt.Println("Query has a fundamental error in it! Please try again.")
-			return
-		}
+			if err != nil {
+				fmt.Println("Query has a fundamental error in it! Please try again.")
+				return
+			}
 		*/
 	}
-	
+
 	//fmt.Printf("Query: %v\n", query)
 	self.doQuery(w, r, query)
 }
@@ -396,42 +396,42 @@ func QueryHandler(influxQueryuery string) (string, error) {
 		if len(tokenizedQuery) == 1 {
 			return "select * from /.*/", nil
 		} else {
-			influxQuery = "select * from " 
-			keywordBuffer := 0	
+			influxQuery = "select * from "
+			keywordBuffer := 0
 			influxEndQ := ""
 			starttime := ""
-			if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1]) {
-				starttime = tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1]
-				influxEndQ = " where time > '" + starttime + "'" 
+			if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery)-2]+" "+tokenizedQuery[len(tokenizedQuery)-1]) {
+				starttime = tokenizedQuery[len(tokenizedQuery)-2] + " " + tokenizedQuery[len(tokenizedQuery)-1]
+				influxEndQ = " where time > '" + starttime + "'"
 				keywordBuffer += 2
 			}
-			if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 4] + " " + tokenizedQuery[len(tokenizedQuery) - 3]) {
+			if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery)-4]+" "+tokenizedQuery[len(tokenizedQuery)-3]) {
 				endtime := starttime
-				starttime = tokenizedQuery[len(tokenizedQuery) - 4] + " " + tokenizedQuery[len(tokenizedQuery) - 3]
+				starttime = tokenizedQuery[len(tokenizedQuery)-4] + " " + tokenizedQuery[len(tokenizedQuery)-3]
 				influxEndQ = " where time > '" + starttime + "' and time < '" + endtime + "'"
 				keywordBuffer += 2
 			}
-			
-			if len(tokenizedQuery) - keywordBuffer == 1 {
+
+			if len(tokenizedQuery)-keywordBuffer == 1 {
 				influxQuery += "/.*/"
 			} else {
 				influxQuery = influxQuery + "\""
 				regexfound := false
-				for i := 1; i < len(tokenizedQuery) - keywordBuffer; i++ {
+				for i := 1; i < len(tokenizedQuery)-keywordBuffer; i++ {
 					if strings.EqualFold(tokenizedQuery[i], "*") {
 						regexfound = true
 					} else {
 						influxQuery = influxQuery + tokenizedQuery[i]
 					}
-					if i < len(tokenizedQuery) - keywordBuffer - 1 {
+					if i < len(tokenizedQuery)-keywordBuffer-1 {
 						influxQuery = influxQuery + " "
 					}
-			
+
 				}
 				influxQuery = influxQuery + "\""
 				if regexfound == true {
 					influxQuery = strings.Replace(influxQuery, "\"", "/", 2)
-					influxQuery = strings.Replace(influxQuery, "/ ", "/", 1)	
+					influxQuery = strings.Replace(influxQuery, "/ ", "/", 1)
 					influxQuery = strings.Replace(influxQuery, " /", "/", -1)
 					influxQuery = strings.Replace(influxQuery, "/", " /", 1)
 				}
@@ -443,36 +443,36 @@ func QueryHandler(influxQueryuery string) (string, error) {
 		influxEndQ := ""
 		buffer := 0
 		starttime := ""
-		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1]) {
-			starttime = tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1]
+		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery)-2]+" "+tokenizedQuery[len(tokenizedQuery)-1]) {
+			starttime = tokenizedQuery[len(tokenizedQuery)-2] + " " + tokenizedQuery[len(tokenizedQuery)-1]
 			influxEndQ = " where time > '" + starttime + "'"
 			buffer += 2
 		} else {
 			fmt.Println("No start-time provided. Query-Timeseries requires at least a startime.")
-			return "", nil 
+			return "", nil
 		}
-		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 4] + " " + tokenizedQuery[len(tokenizedQuery) - 3]) {
-			influxEndQ = " where time > '" + starttime + "' and time < '" + tokenizedQuery[len(tokenizedQuery) - 4] + " " + tokenizedQuery[len(tokenizedQuery) - 3] + "'"
+		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery)-4]+" "+tokenizedQuery[len(tokenizedQuery)-3]) {
+			influxEndQ = " where time > '" + starttime + "' and time < '" + tokenizedQuery[len(tokenizedQuery)-4] + " " + tokenizedQuery[len(tokenizedQuery)-3] + "'"
 			buffer += 2
-		} 
+		}
 		influxQuery := "select * from "
 		influxQuery = influxQuery + "\""
 		regexfound := false
-		for i := 1; i < len(tokenizedQuery) - buffer; i++ {
+		for i := 1; i < len(tokenizedQuery)-buffer; i++ {
 			if strings.EqualFold(tokenizedQuery[i], "*") {
 				regexfound = true
 			} else {
 				influxQuery = influxQuery + tokenizedQuery[i]
 			}
-			if i < len(tokenizedQuery) - buffer - 1 {
+			if i < len(tokenizedQuery)-buffer-1 {
 				influxQuery = influxQuery + " "
 			}
-		
+
 		}
 		influxQuery = influxQuery + "\""
 		if regexfound == true {
 			influxQuery = strings.Replace(influxQuery, "\"", "/", 2)
-			influxQuery = strings.Replace(influxQuery, "/ ", "/", 1)	
+			influxQuery = strings.Replace(influxQuery, "/ ", "/", 1)
 			influxQuery = strings.Replace(influxQuery, " /", "/", -1)
 			influxQuery = strings.Replace(influxQuery, "/", " /", 1)
 		}
@@ -481,26 +481,26 @@ func QueryHandler(influxQueryuery string) (string, error) {
 	case curQuery, curQ:
 		influxEndQ := ""
 		buffer := 0
-		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1]) {
-			influxEndQ = influxEndQ + " where time < '" + tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1] + "'"
+		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery)-2]+" "+tokenizedQuery[len(tokenizedQuery)-1]) {
+			influxEndQ = influxEndQ + " where time < '" + tokenizedQuery[len(tokenizedQuery)-2] + " " + tokenizedQuery[len(tokenizedQuery)-1] + "'"
 			buffer += 2
-		} 
+		}
 		influxQuery := "select * from \""
 		regexfound := false
-		for i := 1; i < len(tokenizedQuery) - buffer; i++ {
+		for i := 1; i < len(tokenizedQuery)-buffer; i++ {
 			if strings.EqualFold(tokenizedQuery[i], "*") {
 				regexfound = true
 			} else {
 				influxQuery = influxQuery + tokenizedQuery[i]
 			}
-			if i < len(tokenizedQuery) - buffer - 1 {
+			if i < len(tokenizedQuery)-buffer-1 {
 				influxQuery = influxQuery + " "
 			}
 		}
 		influxQuery = influxQuery + "\""
 		if regexfound == true {
 			influxQuery = strings.Replace(influxQuery, "\"", "/", 2)
-			influxQuery = strings.Replace(influxQuery, "/ ", "/", 1)	
+			influxQuery = strings.Replace(influxQuery, "/ ", "/", 1)
 			influxQuery = strings.Replace(influxQuery, " /", "/", -1)
 			influxQuery = strings.Replace(influxQuery, "/", " /", 1)
 		}
@@ -508,94 +508,94 @@ func QueryHandler(influxQueryuery string) (string, error) {
 		return influxQuery, nil
 	case folQuery:
 		influxEndQ := ""
-		influxStartQ := ""	
+		influxStartQ := ""
 		buffer := 0
 		endtime := ""
 		starttime := ""
-		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1]) {
-			starttime = tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1]
+		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery)-2]+" "+tokenizedQuery[len(tokenizedQuery)-1]) {
+			starttime = tokenizedQuery[len(tokenizedQuery)-2] + " " + tokenizedQuery[len(tokenizedQuery)-1]
 			buffer += 2
 		} else {
 			fmt.Println("Must provide a start-time for Follow-Query!")
 			return "", nil
 		}
-		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 4] + " " + tokenizedQuery[len(tokenizedQuery) - 3]) {
+		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery)-4]+" "+tokenizedQuery[len(tokenizedQuery)-3]) {
 			endtime = starttime
-			starttime = tokenizedQuery[len(tokenizedQuery) - 4] + " " + tokenizedQuery[len(tokenizedQuery) - 3]
+			starttime = tokenizedQuery[len(tokenizedQuery)-4] + " " + tokenizedQuery[len(tokenizedQuery)-3]
 			influxEndQ = " and time < '" + endtime + "'"
 			buffer += 2
-		} 
+		}
 		influxStartQ = " where time > '" + starttime + "'"
 		influxQueryBase := "select * from \""
 		regexfound := false
-		for i := 1; i < len(tokenizedQuery) - buffer; i++ {
+		for i := 1; i < len(tokenizedQuery)-buffer; i++ {
 			if strings.EqualFold(tokenizedQuery[i], "*") {
 				regexfound = true
 			} else {
 				influxQueryBase = influxQueryBase + tokenizedQuery[i]
 			}
-			if i < len(tokenizedQuery) - buffer - 1 {
+			if i < len(tokenizedQuery)-buffer-1 {
 				influxQueryBase = influxQueryBase + " "
 			}
 		}
 		influxQueryBase = influxQueryBase + "\""
 		if regexfound == true {
 			influxQueryBase = strings.Replace(influxQueryBase, "\"", "/", 2)
-			influxQueryBase = strings.Replace(influxQueryBase, "/ ", "/", 1)	
+			influxQueryBase = strings.Replace(influxQueryBase, "/ ", "/", 1)
 			influxQueryBase = strings.Replace(influxQueryBase, " /", "/", -1)
 			influxQueryBase = strings.Replace(influxQueryBase, "/", " /", 1)
 		}
 		influxQuery := influxQueryBase + influxStartQ + influxEndQ
 		/*
-		endt := time.Now()	
-		if endtime != "" {
-			enddatestring := strings.Split(tokenizedQuery[len(tokenizedQuery) - 2], "-")
-			endtimestring := strings.Split(tokenizedQuery[len(tokenizedQuery) - 1], ":")
-			endtimeint := []int{}
-			enddateint := []int{}
-			for _, elem := range enddatestring {
-				intdate, _ := strconv.ParseInt(elem, 10, 0)
-				enddateint = append(enddateint, int(intdate))
-			}
-			for _, elem := range endtimestring {
-				inttime, _ := strconv.ParseInt(elem, 10, 0)
-				endtimeint = append(endtimeint, int(inttime))
-			}
-			endt = time.Date(enddateint[0], time.Month(enddateint[1]), enddateint[2], endtimeint[0], endtimeint[1], endtimeint[2], 0, time.UTC)
-		}
-		
-		for (time.Now().Before(endt) || (endtime == "")) {
-			starttimearray := strings.Split(time.Now().String(), " ")
-			influxStartQ = " where time > '" + starttimearray[0] + " " + starttimearray[1] + "'"
-			influxQuery := influxQueryBase + influxStartQ + influxEndQ
-			newResults, err := client.Query(influxQuery)
-			if err != nil {
-				fmt.Println("Invalid Query!")
-				return retResults, err
-			}
-			for _, series := range newResults {
-				for _, point := range series.GetPoints() {
-					fmt.Printf("%v\t %v\t %v\n", series.GetName(), point[0], point[1])
+			endt := time.Now()
+			if endtime != "" {
+				enddatestring := strings.Split(tokenizedQuery[len(tokenizedQuery) - 2], "-")
+				endtimestring := strings.Split(tokenizedQuery[len(tokenizedQuery) - 1], ":")
+				endtimeint := []int{}
+				enddateint := []int{}
+				for _, elem := range enddatestring {
+					intdate, _ := strconv.ParseInt(elem, 10, 0)
+					enddateint = append(enddateint, int(intdate))
 				}
+				for _, elem := range endtimestring {
+					inttime, _ := strconv.ParseInt(elem, 10, 0)
+					endtimeint = append(endtimeint, int(inttime))
+				}
+				endt = time.Date(enddateint[0], time.Month(enddateint[1]), enddateint[2], endtimeint[0], endtimeint[1], endtimeint[2], 0, time.UTC)
 			}
-			newResults = []*Series{}
-		}
+
+			for (time.Now().Before(endt) || (endtime == "")) {
+				starttimearray := strings.Split(time.Now().String(), " ")
+				influxStartQ = " where time > '" + starttimearray[0] + " " + starttimearray[1] + "'"
+				influxQuery := influxQueryBase + influxStartQ + influxEndQ
+				newResults, err := client.Query(influxQuery)
+				if err != nil {
+					fmt.Println("Invalid Query!")
+					return retResults, err
+				}
+				for _, series := range newResults {
+					for _, point := range series.GetPoints() {
+						fmt.Printf("%v\t %v\t %v\n", series.GetName(), point[0], point[1])
+					}
+				}
+				newResults = []*Series{}
+			}
 		*/
 		return influxQuery, nil
 	default:
 		fmt.Printf("%s is an unrecognized query type - see documentation for allowed query types", influxQueryuery)
 		return "", nil
-	} 
-	
+	}
+
 	return "", nil
 }
 
-func isDateTime(datetime string) (bool) { 
+func isDateTime(datetime string) bool {
 	date := strings.Split(datetime, " ")[0]
 	time := strings.Split(datetime, " ")[1]
 	ymd := strings.Split(date, "-")
 	hms := strings.Split(time, ":")
-	match, _ := regexp.MatchString(ymdhmsz, datetime) 
+	match, _ := regexp.MatchString(ymdhmsz, datetime)
 	if match == true {
 		if isValidDate(ymd, true) && isValidTime(hms) {
 			return true
@@ -605,15 +605,15 @@ func isDateTime(datetime string) (bool) {
 		if match == true {
 			if isValidDate(ymd, false) && isValidTime(hms) {
 				return true
-        		}
+			}
 		}
-	}       
-	return false 
+	}
+	return false
 }
 
 // If YMD format is passed the isymd is true, otherwise false.
 
-func isValidDate(date []string, isymd bool) (bool) {
+func isValidDate(date []string, isymd bool) bool {
 	intDates := []int64{}
 	for _, val := range date {
 		intDate, err := strconv.ParseInt(val, 10, 32)
@@ -622,19 +622,19 @@ func isValidDate(date []string, isymd bool) (bool) {
 			return false
 		}
 	}
-	if (isymd) {
-		if (intDates[1] >= 1 && intDates[1] <= 12 && intDates[2] >= 1 && intDates[2] <= 31) {
+	if isymd {
+		if intDates[1] >= 1 && intDates[1] <= 12 && intDates[2] >= 1 && intDates[2] <= 31 {
 			return true
 		}
 	} else {
-		if (intDates[0] >= 1 && intDates[0] <= 12 && intDates[1] >= 1 && intDates[1] <= 31) {
+		if intDates[0] >= 1 && intDates[0] <= 12 && intDates[1] >= 1 && intDates[1] <= 31 {
 			return true
 		}
 	}
 	return false
 }
 
-func isValidTime(time []string) (bool) {
+func isValidTime(time []string) bool {
 	intTimes := []int64{}
 	for _, val := range time {
 		intTime, err := strconv.ParseInt(val, 10, 32)
@@ -642,7 +642,7 @@ func isValidTime(time []string) (bool) {
 		if err != nil {
 			return false
 		}
-	} 
+	}
 	if intTimes[0] >= 0 && intTimes[0] <= 23 && intTimes[1] >= 0 && intTimes[1] <= 59 && intTimes[2] >= 0 && intTimes[2] <= 59 {
 		return true
 	}
