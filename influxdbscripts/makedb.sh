@@ -1,11 +1,11 @@
 #!/bin/sh
 
-if [ $HTTPPORT -eq 8094 ]
+if [ -z $HTTPPORT ]
 then 
     curl -X POST "http://localhost:$HTTPPORT/db?u=root&p=root" \
             -d '{"name": "thedb"}'
 
     echo
 else
-    echo "HTTPPORT env variable not set properly"
+    echo "HTTPPORT env variable must be set. Aborting."
 fi

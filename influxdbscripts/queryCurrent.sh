@@ -1,10 +1,10 @@
 #!/bin/sh
 
-if [ $HTTPPORT -eq 8094 ]
+if [ -z $HTTPPORT ] && [ -z $DBNAME ]
 then 
     curl -X POST "http://localhost:$HTTPPORT/db/$DBNAME/query_current/ixltrade?u=root&p=root" \
 
     echo
 else
-    echo "HTTPPORT env variable not set properly"
+    echo "HTTPPORT and DBNAME env variables must be set. Aborting."
 fi
