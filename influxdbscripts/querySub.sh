@@ -2,7 +2,7 @@
 
 if [ $HTTPPORT -eq 8094 ]
 then 
-    curl -X POST "http://localhost:$HTTPPORT/db/thedb/query_subscriptions?u=root&p=root"
+    curl -X POST "http://localhost:$HTTPPORT/db/$DBNAME/query_subscriptions?u=root&p=root"
 
     echo
 else

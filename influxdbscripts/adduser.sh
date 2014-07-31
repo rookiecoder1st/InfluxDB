@@ -2,7 +2,7 @@
 
 if [ $HTTPPORT -eq 8094 ]
 then 
-    curl -X POST "http://localhost:$HTTPPORT/db/mydb/users?u=root&p=root" \
+    curl -X POST "http://localhost:$HTTPPORT/db/$DBNAME/users?u=root&p=root" \
             -d '{"name": "thumps", "password": "chupee"}'
 
     echo

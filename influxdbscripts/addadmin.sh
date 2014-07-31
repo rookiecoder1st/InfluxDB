@@ -2,7 +2,7 @@
 
 if [ $HTTPPORT -eq 8094 ]
 then 
-    curl -X POST "http://localhost:$HTTPPORT/db/mydb/users/thumps?u=root&p=root" \
+    curl -X POST "http://localhost:$HTTPPORT/db/$DBNAME/users/thumps?u=root&p=root" \
         -d '{"admin": true}'
 
     echo

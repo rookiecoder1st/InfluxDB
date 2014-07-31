@@ -1,3 +1,3 @@
 #!/bin/sh
 
-curl -X POST 'chupee'
+echo "not implemented"

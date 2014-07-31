@@ -2,7 +2,7 @@
 
 if [ $HTTPPORT -eq 8094 ]
 then 
-    curl "http://localhost:$HTTPPORT/db/mydb/users?u=root&p=root"
+    curl "http://localhost:$HTTPPORT/db/$DBNAME/users?u=root&p=root"
 
     echo
 else

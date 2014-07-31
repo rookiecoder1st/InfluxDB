@@ -2,7 +2,7 @@
 
 if [ $HTTPPORT -eq 8094 ]
 then 
-    curl -X DELETE "http://localhost:$HTTPPORT/db/mydb/users/thumps?u=root&p=root"
+    curl -X DELETE "http://localhost:$HTTPPORT/db/$DBNAME/users/thumps?u=root&p=root"
 
     echo
 else
