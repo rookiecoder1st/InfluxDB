@@ -63,7 +63,7 @@ func (self *Shard) Write(database string, series []*protocol.Series) error {
 				// pass the uint64 by reference so binary.Write() doesn't create a new buffer
 				// see the source code for intDataSize() in binary.go
 				binary.Write(keyBuffer, binary.BigEndian, &timestamp)
-				binary.Write(keyBuffer, binary.BigEndian, point.SequenceNumber)
+				// binary.Write(keyBuffer, binary.BigEndian, point.SequenceNumber)
 				pointKey := keyBuffer.Bytes()
 
 				if point.Values[fieldIndex].GetIsNull() {
@@ -260,7 +260,7 @@ func (self *Shard) executeQueryForSeries(querySpec *parser.QuerySpec, seriesName
 
 		time := self.convertUintTimestampToInt64(&t)
 		point.SetTimestampInMicroseconds(time)
-		point.SequenceNumber = &sequence
+		// point.SequenceNumber = &sequence
 
 		// stop the loop if we ran out of points
 		if !isValid {
@@ -480,8 +480,8 @@ func (self *Shard) fetchSinglePoint(querySpec *parser.QuerySpec, series string, 
 	timeAndSequenceBuffer := bytes.NewBuffer(make([]byte, 0, 16))
 	binary.Write(timeAndSequenceBuffer, binary.BigEndian, self.convertTimestampToUint(&timestamp))
 	binary.Write(timeAndSequenceBuffer, binary.BigEndian, sequenceNumber)
-	sequenceNumber_uint64 := uint64(sequenceNumber)
-	point.SequenceNumber = &sequenceNumber_uint64
+	// sequenceNumber_uint64 := uint64(sequenceNumber)
+	// point.SequenceNumber = &sequenceNumber_uint64
 	point.SetTimestampInMicroseconds(timestamp)
 
 	timeAndSequenceBytes := timeAndSequenceBuffer.Bytes()

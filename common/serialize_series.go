@@ -75,7 +75,7 @@ func ConvertToDataStoreSeries(s ApiSeries, precision TimePrecision) (*protocol.S
 
 		values := make([]*protocol.FieldValue, 0, len(point))
 		var timestamp *int64
-		var sequence *uint64
+		// var sequence *uint64
 
 		for idx, field := range s.GetColumns() {
 
@@ -103,20 +103,22 @@ func ConvertToDataStoreSeries(s ApiSeries, precision TimePrecision) (*protocol.S
 				}
 			}
 
-			if field == "sequence_number" {
-				switch x := value.(type) {
-				case json.Number:
-					f, err := x.Float64()
-					if err != nil {
-						return nil, err
+			/*
+				if field == "sequence_number" {
+					switch x := value.(type) {
+					case json.Number:
+						f, err := x.Float64()
+						if err != nil {
+							return nil, err
+						}
+						_sequenceNumber := uint64(f)
+						sequence = &_sequenceNumber
+						continue
+					default:
+						return nil, fmt.Errorf("sequence_number field must be float but is %T (%v)", value, value)
 					}
-					_sequenceNumber := uint64(f)
-					sequence = &_sequenceNumber
-					continue
-				default:
-					return nil, fmt.Errorf("sequence_number field must be float but is %T (%v)", value, value)
 				}
-			}
+			*/
 
 			switch v := value.(type) {
 			case string:
@@ -142,9 +144,9 @@ func ConvertToDataStoreSeries(s ApiSeries, precision TimePrecision) (*protocol.S
 			}
 		}
 		points = append(points, &protocol.Point{
-			Values:         values,
-			Timestamp:      timestamp,
-			SequenceNumber: sequence,
+			Values:    values,
+			Timestamp: timestamp,
+			// SequenceNumber: sequence,
 		})
 	}
 
@@ -165,7 +167,7 @@ func SerializeSeries(memSeries map[string]*protocol.Series, precision TimePrecis
 
 	for _, series := range memSeries {
 		includeSequenceNumber := true
-		if len(series.Points) > 0 && series.Points[0].SequenceNumber == nil {
+		if len(series.Points) > 0 /* && series.Points[0].SequenceNumber == nil */ {
 			includeSequenceNumber = false
 		}
 
@@ -194,9 +196,11 @@ func SerializeSeries(memSeries map[string]*protocol.Series, precision TimePrecis
 			rowValues := []interface{}{timestamp}
 			s := uint64(0)
 			if includeSequenceNumber {
-				if row.SequenceNumber != nil {
-					s = row.GetSequenceNumber()
-				}
+				/*
+					if row.SequenceNumber != nil {
+						s = row.GetSequenceNumber()
+					}
+				*/
 				rowValues = append(rowValues, s)
 			}
 			for _, value := range row.Values {

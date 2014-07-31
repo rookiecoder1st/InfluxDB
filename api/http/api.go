@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	// "reflect"
 
 	log "code.google.com/p/log4go"
 	"github.com/bmizerany/pat"
@@ -270,19 +271,41 @@ func (self *AllPointsWriter) yield(series *protocol.Series) error {
 	}
 
 	self.memSeries[series.GetName()] = MergeSeries(self.memSeries[series.GetName()], series)
+	fmt.Printf("MemSer: %v\n", self.memSeries)
 	return nil
 }
 
 func (self *AllPointsWriter) done() {
+	// fmt.Printf("MemSeries: %v\n", self.memSeries)
+	/*
 	data, err := serializeMultipleSeries(self.memSeries, self.precision, self.pretty)
 	if err != nil {
 		self.w.WriteHeader(libhttp.StatusInternalServerError)
 		self.w.Write([]byte(err.Error()))
 		return
 	}
+	*/	
+	seriesStr := ""
+	for _, series := range self.memSeries {
+		//fmt.Printf("Series: %v\n", series)
+		seriesStr += series.GetName() + "\t"
+		for _, pt := range series.GetPoints() { 
+			seriesStr += strconv.Itoa(int(*pt.Timestamp)) + "\t" 
+			for i := range pt.Values {
+				seriesStr += pt.GetFieldValueAsString(i) + "\t"
+			}
+		}
+		//fmt.Printf("Type: %v\n", reflect.TypeOf(val))
+		seriesStr += "\n"
+	}
+	fmt.Printf("%v", seriesStr)
+	byteData := []byte{}
+	copy(byteData[:], seriesStr)
+
 	self.w.Header().Add("content-type", "application/json")
 	self.w.WriteHeader(libhttp.StatusOK)
-	self.w.Write(data)
+		
+	//self.w.Write(data)	
 }
 
 type ChunkWriter struct {
