@@ -1,6 +1,6 @@
 #!/bin/sh
 
-if [ -z $HTTPPORT ]
+if [ ! -z $HTTPPORT ]
 then 
     curl -X DELETE "http://localhost:$HTTPPORT/cluster_admins/paul?u=root&p=root"
     

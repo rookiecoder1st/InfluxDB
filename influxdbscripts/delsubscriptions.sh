@@ -1,6 +1,6 @@
 #!/bin/sh
 
-if [ -z $HTTPPORT ] && [ -z $DBNAME ]
+if [ ! -z $HTTPPORT ] && [ ! -z $DBNAME ]
 then 
     curl -X DELETE "http://localhost:$HTTPPORT/db/$DBNAME/subscriptions/6?u=root&p=root" \
 

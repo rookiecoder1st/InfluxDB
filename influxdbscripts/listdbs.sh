@@ -1,6 +1,6 @@
 #!/bin/sh
 
-if [ -z $HTTPPORT ]
+if [ ! -z $HTTPPORT ]
 then 
     curl "http://localhost:$HTTPPORT/db?u=root&p=root"
 

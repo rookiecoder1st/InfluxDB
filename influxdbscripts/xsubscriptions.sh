@@ -1,6 +1,6 @@
 #!/bin/sh
 
-if [ -z $HTTPPORT ] && [ -z $DBNAME ]
+if [ ! -z $HTTPPORT ] && [ ! -z $DBNAME ]
 then 
     curl -X DELETE "http://localhost:$HTTPPORT/db/$DBNAME/subscriptions/flacco?u=root&p=root" \
 

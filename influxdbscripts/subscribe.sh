@@ -1,6 +1,6 @@
 #!/bin/sh
 
-if [ -z $HTTPPORT ] && [ -z $DBNAME ]
+if [ ! -z $HTTPPORT ] && [ ! -z $DBNAME ]
 then 
     curl -X POST "http://localhost:$HTTPPORT/db/$DBNAME/subscriptions?u=root&p=root" \
             -d '{"kws":["joe", "flacco"],"duration":1,"startTm":"2014-07-24 11:11:11","endTm":"2014-07-25 12:12:12"}'
