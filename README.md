@@ -1,3 +1,16 @@
+## Influxdbscripts Folder
+
+Within the folder are scripts that make api calls.
+
+A common occurrence is they make queries based on the wrong database name - if this happens, make sure to edit
+the script and change the database name listed. I just now realized this should be made into a parameter and will fix this now.
+
+These scripts need the environment variable HTTPPORT to be set. For our personal configs, they should be:
+
+Eric - 8086
+Rahji - 8094
+Andrew - 8097
+
 InfluxDB [![Build Status](https://travis-ci.org/influxdb/influxdb.png?branch=master)](https://travis-ci.org/influxdb/influxdb)
 =========
 
