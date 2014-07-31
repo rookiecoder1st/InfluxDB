@@ -274,8 +274,8 @@ func (self *Server) handleMessage(reader *bufio.Reader) (err error) {
 	}
 	// sn := uint64(1) // use same SN makes sure that we'll only keep the latest value for a given metric_id-timestamp pair
 	point := &protocol.Point{
-		Timestamp:      &graphiteMetric.timestamp,
-		Values:         values,
+		Timestamp: &graphiteMetric.timestamp,
+		Values:    values,
 		// SequenceNumber: &sn,
 	}
 	record := Record{graphiteMetric.name, point}
