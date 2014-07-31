@@ -8,7 +8,9 @@ the script and change the database name listed. I just now realized this should 
 These scripts need the environment variable HTTPPORT to be set. For our personal configs, they should be:
 
 Eric - 8086
+
 Rahji - 8094
+
 Andrew - 8097
 
 InfluxDB [![Build Status](https://travis-ci.org/influxdb/influxdb.png?branch=master)](https://travis-ci.org/influxdb/influxdb)
