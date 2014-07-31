@@ -60,3 +60,6 @@ config.sample.toml
 /admin
 /admin/
 /data/
+
+# random
+ts_data.txt
