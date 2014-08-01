@@ -2,16 +2,17 @@
 
 Within the folder are scripts that make api calls.
 
-A common occurrence is they make queries based on the wrong database name - if this happens, make sure to edit
-the script and change the database name listed. I just now realized this should be made into a parameter and will fix this now.
-
-These scripts need the environment variable HTTPPORT to be set. For our personal configs, they should be:
+These scripts need the environment variables HTTPPORT and (usually) DBNAME to be set. For our personal configs, the HTTPPORT should be set to:
 
 Eric - 8086
 
 Rahji - 8094
 
 Andrew - 8097
+
+If either of these env variables are not set, the script fails and echoes to set them.
+
+Also, within the folder is a subdirectory called data. This has parse.py, instantdata.py, and a data file so that writing to the database is simple.
 
 InfluxDB [![Build Status](https://travis-ci.org/influxdb/influxdb.png?branch=master)](https://travis-ci.org/influxdb/influxdb)
 =========
