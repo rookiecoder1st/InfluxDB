@@ -30,13 +30,11 @@ import (
 const (
 	idQ      = "QI"
 	idQuery  = "Query-Ids"
-	keyQ     = "QK"
-	keyQuery = "Query-Keywords"
 	tsQ      = "QT"
 	tsQuery  = "Query-Timeseries"
 	curQ     = "QC"
 	curQuery = "Query-Current"
-	// folQ = "QF"   // Not sure if this works or not
+	folQ 	 = "QF"   // Not sure if this works or not
 	folQuery   = "Query-Follow"
 	scQ        = "SC"
 	scQuery    = "Sub-Current"
@@ -281,24 +279,6 @@ func (self *AllPointsWriter) done() {
 		self.w.Write([]byte(err.Error()))
 		return
 	}
-	/*
-		seriesStr := ""
-		for _, series := range self.memSeries {
-			//fmt.Printf("Series: %v\n", series)
-			seriesStr += series.GetName() + "\t"
-			for _, pt := range series.GetPoints() {
-				seriesStr += strconv.Itoa(int(*pt.Timestamp)) + "\t"
-				for i := range pt.Values {
-					seriesStr += pt.GetFieldValueAsString(i) + "\t"
-				}
-			}
-			//fmt.Printf("Type: %v\n", reflect.TypeOf(val))
-			seriesStr += "\n"
-		}
-		fmt.Printf("%v", seriesStr)
-		byteData := []byte{}
-		copy(byteData[:], seriesStr)
-	*/
 	self.w.Header().Add("content-type", "text/plain")
 	self.w.WriteHeader(libhttp.StatusOK)
 	self.w.Write(data)
@@ -392,102 +372,62 @@ func (self *HttpServer) doQuery(w libhttp.ResponseWriter, r *libhttp.Request, qu
 func (self *HttpServer) query(w libhttp.ResponseWriter, r *libhttp.Request) {
 	query := r.URL.Query().Get("q")
 	if strings.Contains(query, "Query") == true {
-		query, _ = QueryHandler(query)
+		query = QueryHandler(query)
 	}
-
 	self.doQuery(w, r, query)
 }
 
-func QueryHandler(influxQueryuery string) (string, error) {
+func QueryHandler(influxQueryuery string) string {
 	tokenizedQuery := strings.Fields(influxQueryuery)
 	influxQuery := ""
 	switch tokenizedQuery[0] {
 	case idQuery, idQ:
 		if len(tokenizedQuery) == 1 {
-			return "select * from /.*/", nil
+			return "select * from /.*/"
 		} else {
 			influxQuery = "select * from "
 			keywordBuffer := 0
 			influxEndQ := ""
 			starttime := ""
-			if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery)-2]+" "+tokenizedQuery[len(tokenizedQuery)-1]) {
-				starttime = tokenizedQuery[len(tokenizedQuery)-2] + " " + tokenizedQuery[len(tokenizedQuery)-1]
+			if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1]) {
+				starttime = tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1]
 				influxEndQ = " where time > '" + starttime + "'"
 				keywordBuffer += 2
 			}
-			if len(tokenizedQuery) > 4 && isDateTime(tokenizedQuery[len(tokenizedQuery)-4]+" "+tokenizedQuery[len(tokenizedQuery)-3]) {
+			if len(tokenizedQuery) > 4 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 4] + " " + tokenizedQuery[len(tokenizedQuery) - 3]) {
 				endtime := starttime
-				starttime = tokenizedQuery[len(tokenizedQuery)-4] + " " + tokenizedQuery[len(tokenizedQuery)-3]
+				starttime = tokenizedQuery[len(tokenizedQuery) - 4] + " " + tokenizedQuery[len(tokenizedQuery) - 3]
 				influxEndQ = " where time > '" + starttime + "' and time < '" + endtime + "'"
 				keywordBuffer += 2
 			}
 
-			if len(tokenizedQuery)-keywordBuffer == 1 {
+			if len(tokenizedQuery) - keywordBuffer == 1 {
 				influxQuery += "/.*/"
 			} else {
-				influxQuery = influxQuery + "\""
-				regexfound := false
-				for i := 1; i < len(tokenizedQuery)-keywordBuffer; i++ {
-					if strings.EqualFold(tokenizedQuery[i], "*") {
-						regexfound = true
-					} else {
-						influxQuery = influxQuery + tokenizedQuery[i]
-					}
-					if i < len(tokenizedQuery)-keywordBuffer-1 {
-						influxQuery = influxQuery + " "
-					}
-
-				}
-				influxQuery = influxQuery + "\""
-				if regexfound == true {
-					influxQuery = strings.Replace(influxQuery, "\"", "/", 2)
-					influxQuery = strings.Replace(influxQuery, "/ ", "/", 1)
-					influxQuery = strings.Replace(influxQuery, " /", "/", -1)
-					influxQuery = strings.Replace(influxQuery, "/", " /", 1)
-				}
+				influxQuery = parseTableName(tokenizedQuery, keywordBuffer)
 			}
 			influxQuery = influxQuery + influxEndQ
 		}
-		return influxQuery, nil
+		return influxQuery
 	case tsQuery, tsQ:
 		influxEndQ := ""
 		buffer := 0
 		starttime := ""
-		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery)-2]+" "+tokenizedQuery[len(tokenizedQuery)-1]) {
-			starttime = tokenizedQuery[len(tokenizedQuery)-2] + " " + tokenizedQuery[len(tokenizedQuery)-1]
+		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1]) {
+			starttime = tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1]
 			influxEndQ = " where time > '" + starttime + "'"
 			buffer += 2
 		} else {
 			fmt.Println("No start-time provided. Query-Timeseries requires at least a startime.")
-			return "", nil
+			return ""
 		}
-		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery)-4]+" "+tokenizedQuery[len(tokenizedQuery)-3]) {
-			influxEndQ = " where time > '" + starttime + "' and time < '" + tokenizedQuery[len(tokenizedQuery)-4] + " " + tokenizedQuery[len(tokenizedQuery)-3] + "'"
+		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 4] + " " + tokenizedQuery[len(tokenizedQuery) - 3]) {
+			influxEndQ = " where time > '" + starttime + "' and time < '" + tokenizedQuery[len(tokenizedQuery) - 4] + " " + tokenizedQuery[len(tokenizedQuery) - 3] + "'"
 			buffer += 2
 		}
-		influxQuery := "select * from "
-		influxQuery = influxQuery + "\""
-		regexfound := false
-		for i := 1; i < len(tokenizedQuery)-buffer; i++ {
-			if strings.EqualFold(tokenizedQuery[i], "*") {
-				regexfound = true
-			} else {
-				influxQuery = influxQuery + tokenizedQuery[i]
-			}
-			if i < len(tokenizedQuery)-buffer-1 {
-				influxQuery = influxQuery + " "
-			}
-
-		}
-		influxQuery = influxQuery + "\""
-		if regexfound == true {
-			influxQuery = strings.Replace(influxQuery, "\"", "/", 2)
-			influxQuery = strings.Replace(influxQuery, "/ ", "/", 1)
-			influxQuery = strings.Replace(influxQuery, " /", "/", -1)
-			influxQuery = strings.Replace(influxQuery, "/", " /", 1)
-		}
+		influxQuery = parseTableName(tokenizedQuery, buffer)
 		influxQuery = influxQuery + influxEndQ
-		return influxQuery, nil
+		return influxQuery
 	case curQuery, curQ:
 		influxEndQ := ""
 		buffer := 0
@@ -495,66 +435,29 @@ func QueryHandler(influxQueryuery string) (string, error) {
 			influxEndQ = influxEndQ + " where time < '" + tokenizedQuery[len(tokenizedQuery)-2] + " " + tokenizedQuery[len(tokenizedQuery)-1] + "'"
 			buffer += 2
 		}
-		influxQuery := "select * from \""
-		regexfound := false
-		for i := 1; i < len(tokenizedQuery)-buffer; i++ {
-			if strings.EqualFold(tokenizedQuery[i], "*") {
-				regexfound = true
-			} else {
-				influxQuery = influxQuery + tokenizedQuery[i]
-			}
-			if i < len(tokenizedQuery)-buffer-1 {
-				influxQuery = influxQuery + " "
-			}
-		}
-		influxQuery = influxQuery + "\""
-		if regexfound == true {
-			influxQuery = strings.Replace(influxQuery, "\"", "/", 2)
-			influxQuery = strings.Replace(influxQuery, "/ ", "/", 1)
-			influxQuery = strings.Replace(influxQuery, " /", "/", -1)
-			influxQuery = strings.Replace(influxQuery, "/", " /", 1)
-		}
-		influxQuery = influxQuery + influxEndQ + " limit 1"
-		return influxQuery, nil
+		influxQuery = parseTableName(tokenizedQuery, buffer)
+		influxQuery += influxEndQ + " limit 1"
+		return influxQuery
 	case folQuery:
 		influxEndQ := ""
 		influxStartQ := ""
 		buffer := 0
 		endtime := ""
 		starttime := ""
-		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery)-2]+" "+tokenizedQuery[len(tokenizedQuery)-1]) {
-			starttime = tokenizedQuery[len(tokenizedQuery)-2] + " " + tokenizedQuery[len(tokenizedQuery)-1]
+		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1]) {
+			starttime = tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1]
 			buffer += 2
 		} else {
 			fmt.Println("Must provide a start-time for Follow-Query!")
-			return "", nil
+			return ""
 		}
-		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery)-4]+" "+tokenizedQuery[len(tokenizedQuery)-3]) {
+		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 4]+ " " + tokenizedQuery[len(tokenizedQuery) - 3]) {
 			endtime = starttime
-			starttime = tokenizedQuery[len(tokenizedQuery)-4] + " " + tokenizedQuery[len(tokenizedQuery)-3]
+			starttime = tokenizedQuery[len(tokenizedQuery) - 4] + " " + tokenizedQuery[len(tokenizedQuery) - 3]
 			influxEndQ = " and time < '" + endtime + "'"
 			buffer += 2
 		}
-		influxStartQ = " where time > '" + starttime + "'"
-		influxQueryBase := "select * from \""
-		regexfound := false
-		for i := 1; i < len(tokenizedQuery)-buffer; i++ {
-			if strings.EqualFold(tokenizedQuery[i], "*") {
-				regexfound = true
-			} else {
-				influxQueryBase = influxQueryBase + tokenizedQuery[i]
-			}
-			if i < len(tokenizedQuery)-buffer-1 {
-				influxQueryBase = influxQueryBase + " "
-			}
-		}
-		influxQueryBase = influxQueryBase + "\""
-		if regexfound == true {
-			influxQueryBase = strings.Replace(influxQueryBase, "\"", "/", 2)
-			influxQueryBase = strings.Replace(influxQueryBase, "/ ", "/", 1)
-			influxQueryBase = strings.Replace(influxQueryBase, " /", "/", -1)
-			influxQueryBase = strings.Replace(influxQueryBase, "/", " /", 1)
-		}
+		influxQueryBase := parseTableName(tokenizedQuery, buffer)
 		influxQuery := influxQueryBase + influxStartQ + influxEndQ
 		/*
 			endt := time.Now()
@@ -591,13 +494,36 @@ func QueryHandler(influxQueryuery string) (string, error) {
 				newResults = []*Series{}
 			}
 		*/
-		return influxQuery, nil
+		return influxQuery
 	default:
-		fmt.Printf("%s is an unrecognized query type - see documentation for allowed query types", influxQueryuery)
-		return "", nil
+		//fmt.Printf("%s is an unrecognized query type - see documentation for allowed query types", influxQueryuery)
+		return ""
 	}
 
-	return "", nil
+	return ""
+}
+
+func parseTableName(tokenizedQuery []string, buffer int) string {
+	influxQuery := "select * from \""
+	regexfound := false
+	for i := 1; i < len(tokenizedQuery)-buffer; i++ {
+		if strings.EqualFold(tokenizedQuery[i], "*") {
+			regexfound = true
+		} else {
+			influxQuery = influxQuery + tokenizedQuery[i]
+		}
+		if i < len(tokenizedQuery)-buffer-1 {
+			influxQuery = influxQuery + " "
+		}
+	}
+	influxQuery = influxQuery + "\""
+	if regexfound == true {
+		influxQuery = strings.Replace(influxQuery, "\"", "/", 2)
+		influxQuery = strings.Replace(influxQuery, "/ ", "/", 1)
+		influxQuery = strings.Replace(influxQuery, " /", "/", -1)
+		influxQuery = strings.Replace(influxQuery, "/", " /", 1)
+	}
+	return influxQuery
 }
 
 func isDateTime(datetime string) bool {
