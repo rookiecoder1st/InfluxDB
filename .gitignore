@@ -29,7 +29,7 @@ protocol/protocol.pb.go
 build/
 
 # executables
-/server
+# /server # need the server to run everything
 /influxdb
 /benchmark-tool
 /main
@@ -37,7 +37,7 @@ build/
 godef
 gosym
 gocode
-inspect-raft
+# inspect-raft # tools to inspect raft
 
 # dependencies
 out_rpm/
@@ -57,8 +57,8 @@ benchmark.log
 config.toml
 config.sample.toml
 
-/admin
-/admin/
+# /admin
+# /admin/ # ignoring this broke the build
 /data/
 
 # random
