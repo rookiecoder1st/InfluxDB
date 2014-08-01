@@ -1714,7 +1714,7 @@ func (self *HttpServer) querySubscription(w libhttp.ResponseWriter, r *libhttp.R
 			start_tm_str := strconv.FormatInt(s.Start, 10)
 			end_tm_str := strconv.FormatInt(s.End, 10)
 
-			query := "select value from " + s.Kw + "where time > " + start_tm_str + " and time < " + end_tm_str
+			query := "select value from " + s.Kw + " where time > " + start_tm_str + " and time < " + end_tm_str
 
 			err = self.coordinator.RunQuery(u, db, query, seriesWriter)
 			if err != nil {
