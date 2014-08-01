@@ -2,7 +2,7 @@
 
 if [ ! -z $HTTPPORT ] && [ ! -z $DBNAME ]
 then 
-    curl -X POST "http://localhost:$HTTPPORT/db/$DBNAME/query_subscriptions?u=root&p=root"
+    curl -X POST "http://localhost:$HTTPPORT/db/$DBNAME/query_subscriptions?u=root&p=root&pretty=true"
 
     echo
 else
