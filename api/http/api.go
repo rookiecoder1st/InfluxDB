@@ -271,7 +271,6 @@ func (self *AllPointsWriter) yield(series *protocol.Series) error {
 	}
 
 	self.memSeries[series.GetName()] = MergeSeries(self.memSeries[series.GetName()], series)
-	fmt.Printf("MemSer: %v\n", self.memSeries)
 	return nil
 }
 
