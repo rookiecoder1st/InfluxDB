@@ -283,22 +283,22 @@ func (self *AllPointsWriter) done() {
 		return
 	}
 	/*
-	seriesStr := ""
-	for _, series := range self.memSeries {
-		//fmt.Printf("Series: %v\n", series)
-		seriesStr += series.GetName() + "\t"
-		for _, pt := range series.GetPoints() {
-			seriesStr += strconv.Itoa(int(*pt.Timestamp)) + "\t"
-			for i := range pt.Values {
-				seriesStr += pt.GetFieldValueAsString(i) + "\t"
+		seriesStr := ""
+		for _, series := range self.memSeries {
+			//fmt.Printf("Series: %v\n", series)
+			seriesStr += series.GetName() + "\t"
+			for _, pt := range series.GetPoints() {
+				seriesStr += strconv.Itoa(int(*pt.Timestamp)) + "\t"
+				for i := range pt.Values {
+					seriesStr += pt.GetFieldValueAsString(i) + "\t"
+				}
 			}
+			//fmt.Printf("Type: %v\n", reflect.TypeOf(val))
+			seriesStr += "\n"
 		}
-		//fmt.Printf("Type: %v\n", reflect.TypeOf(val))
-		seriesStr += "\n"
-	}
-	fmt.Printf("%v", seriesStr)
-	byteData := []byte{}
-	copy(byteData[:], seriesStr)
+		fmt.Printf("%v", seriesStr)
+		byteData := []byte{}
+		copy(byteData[:], seriesStr)
 	*/
 	self.w.Header().Add("content-type", "text/plain")
 	self.w.WriteHeader(libhttp.StatusOK)
@@ -411,14 +411,14 @@ func QueryHandler(influxQueryuery string) (string, error) {
 			keywordBuffer := 0
 			influxEndQ := ""
 			starttime := ""
-			if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1]) {
-				starttime = tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1]
+			if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery)-2]+" "+tokenizedQuery[len(tokenizedQuery)-1]) {
+				starttime = tokenizedQuery[len(tokenizedQuery)-2] + " " + tokenizedQuery[len(tokenizedQuery)-1]
 				influxEndQ = " where time > '" + starttime + "'"
 				keywordBuffer += 2
 			}
-			if len(tokenizedQuery) > 4 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 4] + " " + tokenizedQuery[len(tokenizedQuery) - 3]) {
+			if len(tokenizedQuery) > 4 && isDateTime(tokenizedQuery[len(tokenizedQuery)-4]+" "+tokenizedQuery[len(tokenizedQuery)-3]) {
 				endtime := starttime
-				starttime = tokenizedQuery[len(tokenizedQuery) - 4] + " " + tokenizedQuery[len(tokenizedQuery) - 3]
+				starttime = tokenizedQuery[len(tokenizedQuery)-4] + " " + tokenizedQuery[len(tokenizedQuery)-3]
 				influxEndQ = " where time > '" + starttime + "' and time < '" + endtime + "'"
 				keywordBuffer += 2
 			}
