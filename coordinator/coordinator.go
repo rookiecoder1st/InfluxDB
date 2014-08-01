@@ -175,6 +175,7 @@ func (self *CoordinatorImpl) runQuery(querySpec *parser.QuerySpec, seriesWriter 
 }
 
 func (self *CoordinatorImpl) runListSeriesQuery(querySpec *parser.QuerySpec, seriesWriter SeriesWriter) error {
+	//fmt.Printf("REACHED LIST SERIES!\n")
 	series := self.clusterConfiguration.MetaStore.GetSeriesForDatabase(querySpec.Database())
 	name := "list_series_result"
 	fields := []string{"name"}
@@ -574,9 +575,9 @@ nextfield:
 			})
 
 			p := &protocol.Point{
-				Values:         make([]*protocol.FieldValue, 0, len(point.Values)-len(fieldsIndeces)),
-				Timestamp:      point.Timestamp,
-				SequenceNumber: point.SequenceNumber,
+				Values:    make([]*protocol.FieldValue, 0, len(point.Values)-len(fieldsIndeces)),
+				Timestamp: point.Timestamp,
+				// SequenceNumber: point.SequenceNumber,
 			}
 
 			// remove the fields used in the target name from the series fields
@@ -593,8 +594,8 @@ nextfield:
 			if assignSequenceNumbers {
 				key := sequenceKey{targetNameWithValues, *p.Timestamp}
 				sequenceMap[key] += 1
-				sequenceNumber := uint64(sequenceMap[key])
-				p.SequenceNumber = &sequenceNumber
+				// sequenceNumber := uint64(sequenceMap[key])
+				// p.SequenceNumber = &sequenceNumber
 			}
 
 			newSeries := serieses[targetNameWithValues]
@@ -618,8 +619,8 @@ nextfield:
 		if assignSequenceNumbers {
 			for _, point := range newSeries.Points {
 				sequenceMap[sequenceKey{targetName, *point.Timestamp}] += 1
-				sequenceNumber := uint64(sequenceMap[sequenceKey{targetName, *point.Timestamp}])
-				point.SequenceNumber = &sequenceNumber
+				// sequenceNumber := uint64(sequenceMap[sequenceKey{targetName, *point.Timestamp}])
+				// point.SequenceNumber = &sequenceNumber
 			}
 		}
 

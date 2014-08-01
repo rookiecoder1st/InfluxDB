@@ -11,7 +11,7 @@ message FieldValue {
 message Point {
   repeated FieldValue values = 1;
   optional int64 timestamp = 2;
-  optional uint64 sequence_number = 3;
+  //optional uint64 sequence_number = 3;
 }
 
 message Series {
@@ -39,7 +39,7 @@ message Request {
   // only write and delete requests get sequenceNumbers assigned. These are used to
   // ensure that the receiving server is up to date
   repeated Series multi_series = 4;
-  optional uint64 sequence_number = 5;
+  // optional uint64 sequence_number = 5;
   optional uint32 shard_id = 6;
   optional string query = 7;
   optional string user_name = 8;
@@ -54,7 +54,7 @@ message Response {
     END_STREAM = 3;
     REPLICATION_REPLAY = 4;
     REPLICATION_REPLAY_END = 5;
-    SEQUENCE_NUMBER = 7;
+    // SEQUENCE_NUMBER = 7;
     // Access denied also serves as an end of stream response
     ACCESS_DENIED = 8;
     HEARTBEAT = 9;

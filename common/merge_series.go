@@ -60,10 +60,10 @@ func MergeSeries(s1, s2 *protocol.Series) *protocol.Series {
 			resultPoint.Values = append(resultPoint.Values, value)
 			if idx < len(s1.Points) {
 				resultPoint.Timestamp = s1.Points[idx].Timestamp
-				resultPoint.SequenceNumber = s1.Points[idx].SequenceNumber
+				// resultPoint.SequenceNumber = s1.Points[idx].SequenceNumber
 			} else {
 				resultPoint.Timestamp = s2.Points[idx-len(s1.Points)].Timestamp
-				resultPoint.SequenceNumber = s2.Points[idx-len(s1.Points)].SequenceNumber
+				// resultPoint.SequenceNumber = s2.Points[idx-len(s1.Points)].SequenceNumber
 			}
 		}
 		resultPoints = append(resultPoints, resultPoint)

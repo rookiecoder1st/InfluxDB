@@ -658,8 +658,8 @@ func (self *QueryEngine) executeArithmeticQuery(query *parser.SelectQuery, yield
 
 		for _, point := range series.Points {
 			newPoint := &protocol.Point{
-				Timestamp:      point.Timestamp,
-				SequenceNumber: point.SequenceNumber,
+				Timestamp: point.Timestamp,
+				// SequenceNumber: point.SequenceNumber,
 			}
 			for _, field := range newSeries.Fields {
 				value := names[field]
