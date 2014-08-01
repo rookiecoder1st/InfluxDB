@@ -7,6 +7,7 @@ import shlex
 from collections import defaultdict
 from influxdb import InfluxDBClient
 from influxdb.client import InfluxDBClientError
+import time
 
 def parse_args():
     import optparse
@@ -74,6 +75,7 @@ def import_data(client, filehandle, time_operations=False):
                        "points": timeseries[ts_key]} for ts_key in timeseries]
         try:
             print insert_ts
+            time.sleep(3)
             #client.write_points_with_precision(insert_ts, "u")
         except InfluxDBClientError, err:
             print >> sys.sterr, "warning: client error: %s\n    attempted to insert '%s'" % (err, ts)
