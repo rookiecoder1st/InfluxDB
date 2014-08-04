@@ -251,7 +251,7 @@ func (self *HttpServer) Close() {
 
 type Writer interface {
 	yield(*protocol.Series) error
-	done()
+	done(string)
 }
 
 type AllPointsWriter struct {
@@ -272,8 +272,55 @@ func (self *AllPointsWriter) yield(series *protocol.Series) error {
 	return nil
 }
 
-func (self *AllPointsWriter) done() {
-	data, err := serializeMultipleSeries(self.memSeries, self.precision, self.pretty)
+func (self *AllPointsWriter) done(query string) {
+	patternSeries := &protocol.Series{}
+	ser := map[string]*protocol.Series{}
+	pts := []*protocol.Point{}
+	if strings.Contains(query, "list series") && len(query) > 11 {
+		searchRegex := false
+		if strings.Contains(query, "/") {
+			searchRegex = true
+		}
+		for _, series := range self.memSeries {
+			for _, table := range series.GetPoints() {
+				for _, pt := range table.Values {
+					value, _ := pt.GetValue()
+					if searchRegex == true {
+						expression := strings.Replace(strings.Fields(query)[2], "/", "", -1)
+						match, _ := regexp.MatchString(expression, value.(string))	
+						if match == true {
+							pts = append(pts, table)
+						} 
+					} else {
+						
+						str := ""
+						for i := 2; i < len(strings.Fields(query)); i++ {
+							str += strings.Fields(query)[i]
+							if i < len(strings.Fields(query)) - 1 {
+								str += " "
+							}
+						}
+						str = strings.Replace(str, "\"", "", -1)
+						match := strings.EqualFold(str, value.(string)) 
+						if match == true {
+							pts = append(pts, table)
+						}
+					}
+				}
+			}
+		
+			name := "list_series_result"
+			patternSeries = &protocol.Series{
+				Name: &name,
+				Fields: []string{"name"},
+				Points: pts,
+			}
+			ser["list_series_result"] = patternSeries
+		}		
+	} else {
+		ser = self.memSeries
+	} 
+	data, err := serializeMultipleSeries(ser, self.precision, self.pretty)
 	if err != nil {
 		self.w.WriteHeader(libhttp.StatusInternalServerError)
 		self.w.Write([]byte(err.Error()))
@@ -306,7 +353,7 @@ func (self *ChunkWriter) yield(series *protocol.Series) error {
 	return nil
 }
 
-func (self *ChunkWriter) done() {
+func (self *ChunkWriter) done(string) {
 }
 
 func TimePrecisionFromString(s string) (TimePrecision, error) {
@@ -356,7 +403,11 @@ func (self *HttpServer) doQuery(w libhttp.ResponseWriter, r *libhttp.Request, qu
 			writer = &AllPointsWriter{map[string]*protocol.Series{}, w, precision, pretty}
 		}
 		seriesWriter := NewSeriesWriter(writer.yield)
-		err = self.coordinator.RunQuery(u, db, query, seriesWriter)
+		if strings.Contains(query, "list series") && len(query) > 11 {
+			err = self.coordinator.RunQuery(u, db, query[0:11], seriesWriter)
+		} else {
+			err = self.coordinator.RunQuery(u, db, query, seriesWriter)
+		}
 		if err != nil {
 			if e, ok := err.(*parser.QueryError); ok {
 				return errorToStatusCode(err), e.PrettyPrint()
@@ -364,7 +415,7 @@ func (self *HttpServer) doQuery(w libhttp.ResponseWriter, r *libhttp.Request, qu
 			return errorToStatusCode(err), err.Error()
 		}
 
-		writer.done()
+		writer.done(query)
 		return -1, nil
 	})
 }
@@ -374,7 +425,11 @@ func (self *HttpServer) query(w libhttp.ResponseWriter, r *libhttp.Request) {
 	if strings.Contains(query, "Query") == true {
 		query = QueryHandler(query)
 	}
-	self.doQuery(w, r, query)
+	if strings.Contains(query, "list series") && len(query) >= 11 {
+		self.doQuery(w, r, query)	
+	} else {
+		self.doQuery(w, r, query)
+	}
 }
 
 func QueryHandler(influxQueryuery string) string {
@@ -383,30 +438,9 @@ func QueryHandler(influxQueryuery string) string {
 	switch tokenizedQuery[0] {
 	case idQuery, idQ:
 		if len(tokenizedQuery) == 1 {
-			return "select * from /.*/"
+			return "list series"
 		} else {
-			influxQuery = "select * from "
-			keywordBuffer := 0
-			influxEndQ := ""
-			starttime := ""
-			if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1]) {
-				starttime = tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1]
-				influxEndQ = " where time > '" + starttime + "'"
-				keywordBuffer += 2
-			}
-			if len(tokenizedQuery) > 4 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 4] + " " + tokenizedQuery[len(tokenizedQuery) - 3]) {
-				endtime := starttime
-				starttime = tokenizedQuery[len(tokenizedQuery) - 4] + " " + tokenizedQuery[len(tokenizedQuery) - 3]
-				influxEndQ = " where time > '" + starttime + "' and time < '" + endtime + "'"
-				keywordBuffer += 2
-			}
-
-			if len(tokenizedQuery) - keywordBuffer == 1 {
-				influxQuery += "/.*/"
-			} else {
-				influxQuery = parseTableName(tokenizedQuery, keywordBuffer)
-			}
-			influxQuery = influxQuery + influxEndQ
+			influxQuery = parseTableName(tokenizedQuery, 0)
 		}
 		return influxQuery
 	case tsQuery, tsQ:
@@ -504,26 +538,51 @@ func QueryHandler(influxQueryuery string) string {
 }
 
 func parseTableName(tokenizedQuery []string, buffer int) string {
-	influxQuery := "select * from \""
 	regexfound := false
-	for i := 1; i < len(tokenizedQuery)-buffer; i++ {
-		if strings.EqualFold(tokenizedQuery[i], "*") {
-			regexfound = true
-		} else {
-			influxQuery = influxQuery + tokenizedQuery[i]
+	if strings.EqualFold(tokenizedQuery[0], "Query-Ids") {
+		if len(tokenizedQuery[0]) == 9 && len(tokenizedQuery) == 1 {
+			return "list series"
 		}
-		if i < len(tokenizedQuery)-buffer-1 {
-			influxQuery = influxQuery + " "
+		influxQuery := "list series \""
+		for i := 1; i < len(tokenizedQuery); i++ {
+                	if strings.EqualFold(tokenizedQuery[i], "*") {
+                       		regexfound = true
+                	} else {
+                        	influxQuery = influxQuery + tokenizedQuery[i]
+               	 	}
+                	if i < len(tokenizedQuery) - 1 {
+                        	influxQuery = influxQuery + " "
+                	}
 		}
+		influxQuery = influxQuery + "\""
+		if regexfound == true {
+			influxQuery = strings.Replace(influxQuery, "\"", "/", 2)
+			influxQuery = strings.Replace(influxQuery, "/ ", "/", 1)
+			influxQuery = strings.Replace(influxQuery, " /", "/", -1)
+			influxQuery = strings.Replace(influxQuery, "/", " /", 1)
+		}
+		return influxQuery
+	} else { 
+		influxQuery := "select * from \""
+		for i := 1; i < len(tokenizedQuery)-buffer; i++ {
+			if strings.EqualFold(tokenizedQuery[i], "*") {
+				regexfound = true
+			} else {
+				influxQuery = influxQuery + tokenizedQuery[i]
+			}
+			if i < len(tokenizedQuery)-buffer-1 {
+				influxQuery = influxQuery + " "
+			}
+		}
+		influxQuery = influxQuery + "\""
+		if regexfound == true {
+			influxQuery = strings.Replace(influxQuery, "\"", "/", 2)
+			influxQuery = strings.Replace(influxQuery, "/ ", "/", 1)
+			influxQuery = strings.Replace(influxQuery, " /", "/", -1)
+			influxQuery = strings.Replace(influxQuery, "/", " /", 1)
+		}
+		return influxQuery
 	}
-	influxQuery = influxQuery + "\""
-	if regexfound == true {
-		influxQuery = strings.Replace(influxQuery, "\"", "/", 2)
-		influxQuery = strings.Replace(influxQuery, "/ ", "/", 1)
-		influxQuery = strings.Replace(influxQuery, " /", "/", -1)
-		influxQuery = strings.Replace(influxQuery, "/", " /", 1)
-	}
-	return influxQuery
 }
 
 func isDateTime(datetime string) bool {
@@ -613,7 +672,7 @@ func (self *HttpServer) query(w libhttp.ResponseWriter, r *libhttp.Request) {
 			return errorToStatusCode(err), err.Error()
 		}
 
-		writer.done()
+		writer.done(query)
 		return -1, nil
 	})
 }
@@ -1645,7 +1704,7 @@ func (self *HttpServer) querySubscription(w libhttp.ResponseWriter, r *libhttp.R
 				}
 				return errorToStatusCode(err), err.Error()
 			}
-			writer.done()
+			writer.done(query)
 
 			s.Start = time.Now().Unix()
 			if err := self.userManager.SubscribeTimeSeries(db, username, s.Kw, s.Duration, s.Start, s.End, false); err != nil {
