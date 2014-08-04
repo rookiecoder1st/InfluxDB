@@ -28,13 +28,13 @@ import (
 )
 
 const (
-	idQ      = "QI"
-	idQuery  = "Query-Ids"
-	tsQ      = "QT"
-	tsQuery  = "Query-Timeseries"
-	curQ     = "QC"
-	curQuery = "Query-Current"
-	folQ 	 = "QF"   // Not sure if this works or not
+	idQ        = "QI"
+	idQuery    = "Query-Ids"
+	tsQ        = "QT"
+	tsQuery    = "Query-Timeseries"
+	curQ       = "QC"
+	curQuery   = "Query-Current"
+	folQ       = "QF" // Not sure if this works or not
 	folQuery   = "Query-Follow"
 	scQ        = "SC"
 	scQuery    = "Sub-Current"
@@ -287,39 +287,39 @@ func (self *AllPointsWriter) done(query string) {
 					value, _ := pt.GetValue()
 					if searchRegex == true {
 						expression := strings.Replace(strings.Fields(query)[2], "/", "", -1)
-						match, _ := regexp.MatchString(expression, value.(string))	
+						match, _ := regexp.MatchString(expression, value.(string))
 						if match == true {
 							pts = append(pts, table)
-						} 
+						}
 					} else {
-						
+
 						str := ""
 						for i := 2; i < len(strings.Fields(query)); i++ {
 							str += strings.Fields(query)[i]
-							if i < len(strings.Fields(query)) - 1 {
+							if i < len(strings.Fields(query))-1 {
 								str += " "
 							}
 						}
 						str = strings.Replace(str, "\"", "", -1)
-						match := strings.EqualFold(str, value.(string)) 
+						match := strings.EqualFold(str, value.(string))
 						if match == true {
 							pts = append(pts, table)
 						}
 					}
 				}
 			}
-		
+
 			name := "list_series_result"
 			patternSeries = &protocol.Series{
-				Name: &name,
+				Name:   &name,
 				Fields: []string{"name"},
 				Points: pts,
 			}
 			ser["list_series_result"] = patternSeries
-		}		
+		}
 	} else {
 		ser = self.memSeries
-	} 
+	}
 	data, err := serializeMultipleSeries(ser, self.precision, self.pretty)
 	if err != nil {
 		self.w.WriteHeader(libhttp.StatusInternalServerError)
@@ -426,7 +426,7 @@ func (self *HttpServer) query(w libhttp.ResponseWriter, r *libhttp.Request) {
 		query = QueryHandler(query)
 	}
 	if strings.Contains(query, "list series") && len(query) >= 11 {
-		self.doQuery(w, r, query)	
+		self.doQuery(w, r, query)
 	} else {
 		self.doQuery(w, r, query)
 	}
@@ -447,16 +447,16 @@ func QueryHandler(influxQueryuery string) string {
 		influxEndQ := ""
 		buffer := 0
 		starttime := ""
-		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1]) {
-			starttime = tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1]
+		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery)-2]+" "+tokenizedQuery[len(tokenizedQuery)-1]) {
+			starttime = tokenizedQuery[len(tokenizedQuery)-2] + " " + tokenizedQuery[len(tokenizedQuery)-1]
 			influxEndQ = " where time > '" + starttime + "'"
 			buffer += 2
 		} else {
 			fmt.Println("No start-time provided. Query-Timeseries requires at least a startime.")
 			return ""
 		}
-		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 4] + " " + tokenizedQuery[len(tokenizedQuery) - 3]) {
-			influxEndQ = " where time > '" + starttime + "' and time < '" + tokenizedQuery[len(tokenizedQuery) - 4] + " " + tokenizedQuery[len(tokenizedQuery) - 3] + "'"
+		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery)-4]+" "+tokenizedQuery[len(tokenizedQuery)-3]) {
+			influxEndQ = " where time > '" + starttime + "' and time < '" + tokenizedQuery[len(tokenizedQuery)-4] + " " + tokenizedQuery[len(tokenizedQuery)-3] + "'"
 			buffer += 2
 		}
 		influxQuery = parseTableName(tokenizedQuery, buffer)
@@ -478,16 +478,16 @@ func QueryHandler(influxQueryuery string) string {
 		buffer := 0
 		endtime := ""
 		starttime := ""
-		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1]) {
-			starttime = tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1]
+		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery)-2]+" "+tokenizedQuery[len(tokenizedQuery)-1]) {
+			starttime = tokenizedQuery[len(tokenizedQuery)-2] + " " + tokenizedQuery[len(tokenizedQuery)-1]
 			buffer += 2
 		} else {
 			fmt.Println("Must provide a start-time for Follow-Query!")
 			return ""
 		}
-		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 4]+ " " + tokenizedQuery[len(tokenizedQuery) - 3]) {
+		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery)-4]+" "+tokenizedQuery[len(tokenizedQuery)-3]) {
 			endtime = starttime
-			starttime = tokenizedQuery[len(tokenizedQuery) - 4] + " " + tokenizedQuery[len(tokenizedQuery) - 3]
+			starttime = tokenizedQuery[len(tokenizedQuery)-4] + " " + tokenizedQuery[len(tokenizedQuery)-3]
 			influxEndQ = " and time < '" + endtime + "'"
 			buffer += 2
 		}
@@ -545,14 +545,14 @@ func parseTableName(tokenizedQuery []string, buffer int) string {
 		}
 		influxQuery := "list series \""
 		for i := 1; i < len(tokenizedQuery); i++ {
-                	if strings.EqualFold(tokenizedQuery[i], "*") {
-                       		regexfound = true
-                	} else {
-                        	influxQuery = influxQuery + tokenizedQuery[i]
-               	 	}
-                	if i < len(tokenizedQuery) - 1 {
-                        	influxQuery = influxQuery + " "
-                	}
+			if strings.EqualFold(tokenizedQuery[i], "*") {
+				regexfound = true
+			} else {
+				influxQuery = influxQuery + tokenizedQuery[i]
+			}
+			if i < len(tokenizedQuery)-1 {
+				influxQuery = influxQuery + " "
+			}
 		}
 		influxQuery = influxQuery + "\""
 		if regexfound == true {
@@ -562,7 +562,7 @@ func parseTableName(tokenizedQuery []string, buffer int) string {
 			influxQuery = strings.Replace(influxQuery, "/", " /", 1)
 		}
 		return influxQuery
-	} else { 
+	} else {
 		influxQuery := "select * from \""
 		for i := 1; i < len(tokenizedQuery)-buffer; i++ {
 			if strings.EqualFold(tokenizedQuery[i], "*") {
@@ -1635,26 +1635,26 @@ func (self *HttpServer) queryFollow(w libhttp.ResponseWriter, r *libhttp.Request
 		startT := strconv.FormatInt(startTm, 10)
 		//endT := strconv.FormatInt(endTm, 10)
 
-        if !strings.ContainsAny(newQf.Kw, "*") {
-            //fmt.Println("hi")
+		if !strings.ContainsAny(newQf.Kw, "*") {
+			//fmt.Println("hi")
 			query := "select value from \"" + newQf.Kw + "\" where time > " + startT
-            // + " and time < " + end_tm_str
-            fmt.Println(query)
-            self.doQuery(w, r, query)
-            time.Sleep(5 * time.Second)
-        } else {
-            query := "select value from \"/" + newQf.Kw + "/\" where time > " + startT
-            self.doQuery(w, r, query)
-        }
+			// + " and time < " + end_tm_str
+			fmt.Println(query)
+			self.doQuery(w, r, query)
+			time.Sleep(5 * time.Second)
+		} else {
+			query := "select value from \"/" + newQf.Kw + "/\" where time > " + startT
+			self.doQuery(w, r, query)
+		}
 
 		ticker := time.NewTicker(time.Second * 1)
 		go func() {
-            fmt.Println("chu")
+			fmt.Println("chu")
 			for t := range ticker.C {
 				now := strconv.FormatInt(t.Unix(), 10)
-                fmt.Println("chu")
+				fmt.Println("chu")
 				query := "select value from \"" + newQf.Kw + "\" where time > " + now
-                // + " and time < " + endT
+				// + " and time < " + endT
 				self.doQuery(w, r, query)
 				if time.Now().Unix() < endTm {
 					break
@@ -1669,15 +1669,15 @@ func (self *HttpServer) queryFollow(w libhttp.ResponseWriter, r *libhttp.Request
 
 func (self *HttpServer) queryCurrent(w libhttp.ResponseWriter, r *libhttp.Request) {
 	kw := r.URL.Query().Get(":kw")
-    if !strings.ContainsAny(kw, "*") {
+	if !strings.ContainsAny(kw, "*") {
 		query := "select value from \"" + kw + "\" limit 1"
-        fmt.Println(query)
-        self.doQuery(w, r, query)
-        time.Sleep(5 * time.Second)
-    } else {
-        query := "select value from \"/" + kw + "/\" limit 1"
-        self.doQuery(w, r, query)
-    }
+		fmt.Println(query)
+		self.doQuery(w, r, query)
+		time.Sleep(5 * time.Second)
+	} else {
+		query := "select value from \"/" + kw + "/\" limit 1"
+		self.doQuery(w, r, query)
+	}
 }
 
 func (self *HttpServer) querySubscription(w libhttp.ResponseWriter, r *libhttp.Request) {

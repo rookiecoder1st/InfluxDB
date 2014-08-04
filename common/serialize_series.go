@@ -196,11 +196,11 @@ func SerializeSeries(memSeries map[string]*protocol.Series, precision TimePrecis
 			rowValues := []interface{}{timestamp}
 			//s := uint64(0)
 			//if includeSequenceNumber {
-				/*
-					if row.SequenceNumber != nil {
-						s = row.GetSequenceNumber()
-					}
-				*/
+			/*
+				if row.SequenceNumber != nil {
+					s = row.GetSequenceNumber()
+				}
+			*/
 			//	rowValues = append(rowValues, s)
 			//}
 			for _, value := range row.Values {
