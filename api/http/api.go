@@ -1633,16 +1633,28 @@ func (self *HttpServer) queryFollow(w libhttp.ResponseWriter, r *libhttp.Request
 		endTm := end.Unix()
 
 		startT := strconv.FormatInt(startTm, 10)
-		endT := strconv.FormatInt(endTm, 10)
+		//endT := strconv.FormatInt(endTm, 10)
 
-		query := "select value from " + newQf.Kw + " where time > " + startT + " and time < " + endT
-		self.doQuery(w, r, query)
+        if !strings.ContainsAny(newQf.Kw, "*") {
+            //fmt.Println("hi")
+			query := "select value from \"" + newQf.Kw + "\" where time > " + startT
+            // + " and time < " + end_tm_str
+            fmt.Println(query)
+            self.doQuery(w, r, query)
+            time.Sleep(5 * time.Second)
+        } else {
+            query := "select value from \"/" + newQf.Kw + "/\" where time > " + startT
+            self.doQuery(w, r, query)
+        }
 
 		ticker := time.NewTicker(time.Second * 1)
 		go func() {
+            fmt.Println("chu")
 			for t := range ticker.C {
 				now := strconv.FormatInt(t.Unix(), 10)
-				query := "select value from " + newQf.Kw + " where time > " + now + " and time < " + endT
+                fmt.Println("chu")
+				query := "select value from \"" + newQf.Kw + "\" where time > " + now
+                // + " and time < " + endT
 				self.doQuery(w, r, query)
 				if time.Now().Unix() < endTm {
 					break
@@ -1657,13 +1669,19 @@ func (self *HttpServer) queryFollow(w libhttp.ResponseWriter, r *libhttp.Request
 
 func (self *HttpServer) queryCurrent(w libhttp.ResponseWriter, r *libhttp.Request) {
 	kw := r.URL.Query().Get(":kw")
-	query := "select value from " + kw + " where limit = 1"
-	self.doQuery(w, r, query)
+    if !strings.ContainsAny(kw, "*") {
+		query := "select value from \"" + kw + "\" limit 1"
+        fmt.Println(query)
+        self.doQuery(w, r, query)
+        time.Sleep(5 * time.Second)
+    } else {
+        query := "select value from \"/" + kw + "/\" limit 1"
+        self.doQuery(w, r, query)
+    }
 }
 
 func (self *HttpServer) querySubscription(w libhttp.ResponseWriter, r *libhttp.Request) {
 	db := r.URL.Query().Get(":db")
-	pretty := isPretty(r)
 	username, _, err := getUsernameAndPassword(r)
 	if err != nil {
 		w.WriteHeader(libhttp.StatusBadRequest)
@@ -1673,19 +1691,6 @@ func (self *HttpServer) querySubscription(w libhttp.ResponseWriter, r *libhttp.R
 
 	// For now we're going to assume that u can't give an end time for Q
 	self.tryAsClusterAdmin(w, r, func(u User) (int, interface{}) {
-		precision, err := TimePrecisionFromString(r.URL.Query().Get("time_precision"))
-		if err != nil {
-			return libhttp.StatusBadRequest, err.Error()
-		}
-
-		var writer Writer
-		if r.URL.Query().Get("chunked") == "true" {
-			writer = &ChunkWriter{w, precision, false, pretty}
-		} else {
-			writer = &AllPointsWriter{map[string]*protocol.Series{}, w, precision, pretty}
-		}
-		seriesWriter := NewSeriesWriter(writer.yield)
-
 		subs, err := self.userManager.ListSubscriptions(u, db)
 		if err != nil {
 			return errorToStatusCode(err), err.Error()
@@ -1694,7 +1699,6 @@ func (self *HttpServer) querySubscription(w libhttp.ResponseWriter, r *libhttp.R
 		for _, s := range subs {
 			start_tm_str := strconv.FormatInt(s.Start, 10)
 			end_tm_str := strconv.FormatInt(s.End, 10)
-
 			query := "select value from " + s.Kw + "where time > " + start_tm_str + " and time < " + end_tm_str
 
 			err = self.coordinator.RunQuery(u, db, query, seriesWriter)
