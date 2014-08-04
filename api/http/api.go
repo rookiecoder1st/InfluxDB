@@ -1682,6 +1682,8 @@ func (self *HttpServer) queryCurrent(w libhttp.ResponseWriter, r *libhttp.Reques
 
 func (self *HttpServer) querySubscription(w libhttp.ResponseWriter, r *libhttp.Request) {
 	db := r.URL.Query().Get(":db")
+	fmt.Printf("DB name: %v\n", db)
+	/*
 	username, _, err := getUsernameAndPassword(r)
 	if err != nil {
 		w.WriteHeader(libhttp.StatusBadRequest)
@@ -1720,6 +1722,7 @@ func (self *HttpServer) querySubscription(w libhttp.ResponseWriter, r *libhttp.R
 
 		return libhttp.StatusAccepted, nil
 	})
+	*/
 }
 
 func (self *HttpServer) getShardSpaces(w libhttp.ResponseWriter, r *libhttp.Request) {
