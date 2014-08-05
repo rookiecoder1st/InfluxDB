@@ -41,7 +41,7 @@ def get_client(opts):
 
 
 def scheduled_write():
-    t = int(time.time())
+    t = int(round(time.time() * 1000))
     value = float(random.randint(0, 100000))
 
     possible_kws = ["ixltrade:ixl", "pool:barton", "margin:average",

@@ -2,7 +2,8 @@
 
 if [ ! -z $HTTPPORT ] && [ ! -z $DBNAME ]
 then 
-    curl -X DELETE "http://localhost:$HTTPPORT/db/$DBNAME/subscriptions/flacco?u=root&p=root" \
+    curl -X DELETE "http://localhost:$HTTPPORT/db/$DBNAME/subscriptions/type:profit?u=root&p=root"
+    curl -X DELETE "http://localhost:$HTTPPORT/db/$DBNAME/subscriptions/ixltrade:ixl?u=root&p=root" \
 
     echo
 else

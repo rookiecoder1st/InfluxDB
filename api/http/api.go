@@ -193,7 +193,8 @@ func (self *HttpServer) Serve(listener net.Listener) {
 	self.registerEndpoint(p, "del", "/db/:db/subscriptions/:kw", self.deleteSubscriptions)
 	self.registerEndpoint(p, "post", "/db/:db/query_follow", self.queryFollow)
 	self.registerEndpoint(p, "post", "/db/:db/query_current/:kw", self.queryCurrent)
-	self.registerEndpoint(p, "post", "/db/:db/query_subscriptions", self.querySubscription)
+	//self.registerEndpoint(p, "post", "/db/:db/query_subscriptions", self.querySubscription)
+	self.registerEndpoint(p, "post", "/db/:db/query_subscriptions/:id", self.querySubscription)
 
 	if listener == nil {
 		self.startSsl(p)
@@ -1549,13 +1550,11 @@ type newQueryFollow struct {
 
 func (self *HttpServer) queryFollow(w libhttp.ResponseWriter, r *libhttp.Request) {
 	self.tryAsClusterAdmin(w, r, func(u User) (int, interface{}) {
-
 		newQf := newQueryFollow{}
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			return libhttp.StatusInternalServerError, err.Error()
 		}
-
 		err = json.Unmarshal(body, &newQf)
 		if err != nil {
 			return libhttp.StatusInternalServerError, err.Error()
@@ -1569,40 +1568,46 @@ func (self *HttpServer) queryFollow(w libhttp.ResponseWriter, r *libhttp.Request
 		if err != nil {
 			return libhttp.StatusBadRequest, nil
 		}
-
-		startTm := start.Unix()
-		endTm := end.Unix()
-
-		startT := strconv.FormatInt(startTm, 10)
-		//endT := strconv.FormatInt(endTm, 10)
+		startT := strconv.FormatInt(start.Unix(), 10)
+		endT := strconv.FormatInt(end.Unix(), 10)
+        startT = startT + "000"
+        endT = endT + "000"
+    
+        fmt.Println(startT)
+        unix_t := strconv.FormatInt(time.Now().Unix(), 10)
+        unix_t = unix_t + "000"
+        fmt.Println(unix_t)
 
         if !strings.ContainsAny(newQf.Kw, "*") {
-            //fmt.Println("hi")
-			query := "select value from \"" + newQf.Kw + "\" where time > " + startT
-            // + " and time < " + end_tm_str
-            fmt.Println(query)
-            self.doQuery(w, r, query)
-            time.Sleep(5 * time.Second)
+            for _ = range time.Tick(10 * time.Second) {
+                query := "select value from \"" + newQf.Kw + "\" where time > " + startT + "u"
+                now := strconv.FormatInt(time.Now().Unix(), 10)
+                now = now + "000"
+                startT = now
+                self.doQuery(w, r, query)
+            }
         } else {
-            query := "select value from \"/" + newQf.Kw + "/\" where time > " + startT
-            self.doQuery(w, r, query)
+            for _ = range time.Tick(10 * time.Second) {
+                query := "select value from \"/" + newQf.Kw + "/\" where time > " + startT + "u"
+                now := strconv.FormatInt(time.Now().Unix(), 10)
+                now = now + "000"
+                startT = now
+                self.doQuery(w, r, query)
+            }
         }
 
-		ticker := time.NewTicker(time.Second * 1)
-		go func() {
+
+/*
+		go func(w libhttp.ResponseWriter, r *libhttp.Request) {
             fmt.Println("chu")
-			for t := range ticker.C {
-				now := strconv.FormatInt(t.Unix(), 10)
-                fmt.Println("chu")
-				query := "select value from \"" + newQf.Kw + "\" where time > " + now
-                // + " and time < " + endT
-				self.doQuery(w, r, query)
-				if time.Now().Unix() < endTm {
-					break
-				}
-			}
-		}()
-		ticker.Stop()
+			for _ = range time.Tick(30 * time.Second) {
+        		now := strconv.FormatInt(time.Now().Unix(), 10)
+	        	query := "select value from \"ixltrade:ixl\"" // where time > " + startT
+                fmt.Println(query)
+		        self.doQuery(w, r, query)
+            }
+		}(w, r)
+*/
 
 		return libhttp.StatusOK, nil
 	})
@@ -1612,9 +1617,7 @@ func (self *HttpServer) queryCurrent(w libhttp.ResponseWriter, r *libhttp.Reques
 	kw := r.URL.Query().Get(":kw")
     if !strings.ContainsAny(kw, "*") {
 		query := "select value from \"" + kw + "\" limit 1"
-        fmt.Println(query)
         self.doQuery(w, r, query)
-        time.Sleep(5 * time.Second)
     } else {
         query := "select value from \"/" + kw + "/\" limit 1"
         self.doQuery(w, r, query)
@@ -1639,26 +1642,13 @@ func (self *HttpServer) querySubscription(w libhttp.ResponseWriter, r *libhttp.R
 
 		for _, s := range subs {
 			start_tm_str := strconv.FormatInt(s.Start, 10)
-			end_tm_str := strconv.FormatInt(s.End, 10)
+            end_tm_str := strconv.FormatInt(s.End, 10)
+            start_tm_str = start_tm_str + "000"
+            end_tm_str = end_tm_str + "000"
 
-            if !strings.ContainsAny(s.Kw, "*") {
-                //fmt.Println("hi")
-			    query := "select value from \"" + s.Kw + "\" where time > " + start_tm_str
-                // + " and time < " + end_tm_str
-                fmt.Println(query)
-                //fmt.Println("here")
-                self.doQuery(w, r, query)
-                //fmt.Println("there")
-                time.Sleep(5 * time.Second)
-            } else {
-                //fmt.Println("he")
-                query := "select value from \"/" + s.Kw + "/\" where time > " + start_tm_str + " and time < " + end_tm_str
-                //fmt.Println("here")
-                self.doQuery(w, r, query)
-                //fmt.Println("there")
-            }
+			query := "select value from \"" + s.Kw + "\" where time > " + start_tm_str + "u"// + end_tm_str + "u"
+            self.doQuery(w, r, query)
 
-            fmt.Println("far")
 			s.Start = time.Now().Unix()
 			if err := self.userManager.SubscribeTimeSeries(db, username, s.Kw, s.Duration, s.Start, s.End, false); err != nil {
 				log.Error("Cannot create subscription: %s", err)
@@ -1666,8 +1656,6 @@ func (self *HttpServer) querySubscription(w libhttp.ResponseWriter, r *libhttp.R
 			}
 			log.Debug("Created subscription %s", s)
 		}
-
-        fmt.Println("fin")
 
 		return libhttp.StatusAccepted, nil
 	})
