@@ -1578,6 +1578,7 @@ func (self *HttpServer) queryFollow(w libhttp.ResponseWriter, r *libhttp.Request
         unix_t = unix_t + "000"
         fmt.Println(unix_t)
 
+/*
         if !strings.ContainsAny(newQf.Kw, "*") {
             for _ = range time.Tick(10 * time.Second) {
                 query := "select value from \"" + newQf.Kw + "\" where time > " + startT + "u"
@@ -1595,19 +1596,16 @@ func (self *HttpServer) queryFollow(w libhttp.ResponseWriter, r *libhttp.Request
                 self.doQuery(w, r, query)
             }
         }
+*/
 
-
-/*
 		go func(w libhttp.ResponseWriter, r *libhttp.Request) {
             fmt.Println("chu")
 			for _ = range time.Tick(30 * time.Second) {
-        		now := strconv.FormatInt(time.Now().Unix(), 10)
 	        	query := "select value from \"ixltrade:ixl\"" // where time > " + startT
                 fmt.Println(query)
 		        self.doQuery(w, r, query)
             }
 		}(w, r)
-*/
 
 		return libhttp.StatusOK, nil
 	})
@@ -1619,6 +1617,7 @@ func (self *HttpServer) queryCurrent(w libhttp.ResponseWriter, r *libhttp.Reques
 		query := "select value from \"" + kw + "\" limit 1"
         self.doQuery(w, r, query)
     } else {
+        kw := strings.Trim(kw, "*")
         query := "select value from \"/" + kw + "/\" limit 1"
         self.doQuery(w, r, query)
     }
