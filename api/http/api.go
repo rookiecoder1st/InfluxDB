@@ -16,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	// "reflect"
 
 	log "code.google.com/p/log4go"
 	"github.com/bmizerany/pat"
@@ -423,13 +422,62 @@ func (self *HttpServer) doQuery(w libhttp.ResponseWriter, r *libhttp.Request, qu
 func (self *HttpServer) query(w libhttp.ResponseWriter, r *libhttp.Request) {
 	query := r.URL.Query().Get("q")
 	if strings.Contains(query, "Query") == true {
+		/*
+		if strings.Contains(query, "Query-Follow") {
+			fmt.Printf("Fields: %v\n", strings.Fields(query))
+			starttimestring := strings.Fields(query)[len(strings.Fields(query)) - 2] + " " + strings.Fields(query)[len(strings.Fields(query)) - 1]
+			endtimestring := ""
+			if (isDateTime(strings.Fields(query)[len(strings.Fields(query)) - 4] + " " + strings.Fields(query)[len(strings.Fields(query)) - 3])) == true  {
+				starttimestring = strings.Fields(query)[len(strings.Fields(query)) - 4] + " " + strings.Fields(query)[len(strings.Fields(query)) - 3]
+				endtimestring = strings.Fields(query)[len(strings.Fields(query)) - 2] + " " + strings.Fields(query)[len(strings.Fields(query)) - 1]
+			}
+	
+			//fmt.Printf("START T: %v\n", starttimestring)
+			//fmt.Printf("END T: %v\n", endtimestring)
+			query = QueryHandler(query)
+			endtimestring = strings.Replace(endtimestring, "'", "", -1)
+			starttimestring = strings.Replace(starttimestring, "'", "", -1)
+			startT := time.Now()
+			var endT time.Time	
+			if len(starttimestring) !=  0 {
+				startT = getTime(strings.Fields(starttimestring))
+			}
+			if len(endtimestring) != 0 {
+				endT = getTime(strings.Fields(endtimestring))
+			}
+			//fmt.Printf("START T: %v\n", startT)
+			for (time.Now().After(startT) && time.Now().Before(endT)) {
+				//fmt.Printf("Q: %v\n", query)		
+				//self.doQuery(w, r, query)
+				// newQuery := query[0:8]
+				startT := time.Now()
+				startTstring := startT.Format("01-02-2006 15:04:05")
+				fmt.Printf("StartT: %v\n", startTstring)	
+			}
+			//fmt.Printf("T: %v\n", startT)
+		}
+		*/ //else {
 		query = QueryHandler(query)
+		//}
 	}
-	if strings.Contains(query, "list series") && len(query) >= 11 {
-		self.doQuery(w, r, query)
-	} else {
-		self.doQuery(w, r, query)
+	self.doQuery(w, r, query)
+}
+
+func getTime(t []string) time.Time {
+	startdatestring := strings.Split(t[0], "-")
+	starttimestring := strings.Split(t[1], ":")
+	starttimeint := []int{}
+	startdateint := []int{}
+	for _, elem := range startdatestring {
+		intdate, _ := strconv.ParseInt(elem, 10, 0)
+		startdateint = append(startdateint, int(intdate))
 	}
+	for _, elem := range starttimestring {
+		inttime, _ := strconv.ParseInt(elem, 10, 0)
+		starttimeint = append(starttimeint, int(inttime))
+	}
+	T := time.Date(startdateint[0], time.Month(startdateint[1]), startdateint[2], starttimeint[0], starttimeint[1], starttimeint[2], 0, time.UTC)
+	return T 
 }
 
 func QueryHandler(influxQueryuery string) string {
@@ -465,8 +513,8 @@ func QueryHandler(influxQueryuery string) string {
 	case curQuery, curQ:
 		influxEndQ := ""
 		buffer := 0
-		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery)-2]+" "+tokenizedQuery[len(tokenizedQuery)-1]) {
-			influxEndQ = influxEndQ + " where time < '" + tokenizedQuery[len(tokenizedQuery)-2] + " " + tokenizedQuery[len(tokenizedQuery)-1] + "'"
+		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1]) {
+			influxEndQ = influxEndQ + " where time < '" + tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1] + "'"
 			buffer += 2
 		}
 		influxQuery = parseTableName(tokenizedQuery, buffer)
@@ -478,55 +526,56 @@ func QueryHandler(influxQueryuery string) string {
 		buffer := 0
 		endtime := ""
 		starttime := ""
-		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery)-2]+" "+tokenizedQuery[len(tokenizedQuery)-1]) {
-			starttime = tokenizedQuery[len(tokenizedQuery)-2] + " " + tokenizedQuery[len(tokenizedQuery)-1]
+		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1]) {
+			starttime = tokenizedQuery[len(tokenizedQuery) - 2] + " " + tokenizedQuery[len(tokenizedQuery) - 1]
+			influxStartQ = " where time > '" + starttime + "'"
 			buffer += 2
 		} else {
-			fmt.Println("Must provide a start-time for Follow-Query!")
 			return ""
 		}
-		if len(tokenizedQuery) > 2 && isDateTime(tokenizedQuery[len(tokenizedQuery)-4]+" "+tokenizedQuery[len(tokenizedQuery)-3]) {
+		if len(tokenizedQuery) > 4 && isDateTime(tokenizedQuery[len(tokenizedQuery) - 4]+ " " + tokenizedQuery[len(tokenizedQuery) - 3]) {
 			endtime = starttime
-			starttime = tokenizedQuery[len(tokenizedQuery)-4] + " " + tokenizedQuery[len(tokenizedQuery)-3]
+			starttime = tokenizedQuery[len(tokenizedQuery) - 4] + " " + tokenizedQuery[len(tokenizedQuery) - 3]
 			influxEndQ = " and time < '" + endtime + "'"
 			buffer += 2
 		}
 		influxQueryBase := parseTableName(tokenizedQuery, buffer)
 		influxQuery := influxQueryBase + influxStartQ + influxEndQ
 		/*
-			endt := time.Now()
-			if endtime != "" {
-				enddatestring := strings.Split(tokenizedQuery[len(tokenizedQuery) - 2], "-")
-				endtimestring := strings.Split(tokenizedQuery[len(tokenizedQuery) - 1], ":")
-				endtimeint := []int{}
-				enddateint := []int{}
-				for _, elem := range enddatestring {
-					intdate, _ := strconv.ParseInt(elem, 10, 0)
-					enddateint = append(enddateint, int(intdate))
-				}
-				for _, elem := range endtimestring {
-					inttime, _ := strconv.ParseInt(elem, 10, 0)
-					endtimeint = append(endtimeint, int(inttime))
-				}
-				endt = time.Date(enddateint[0], time.Month(enddateint[1]), enddateint[2], endtimeint[0], endtimeint[1], endtimeint[2], 0, time.UTC)
+		endt := time.Now()
+		if endtime != "" {
+			enddatestring := strings.Split(tokenizedQuery[len(tokenizedQuery) - 2], "-")
+			endtimestring := strings.Split(tokenizedQuery[len(tokenizedQuery) - 1], ":")
+			endtimeint := []int{}
+			enddateint := []int{}
+			for _, elem := range enddatestring {
+				intdate, _ := strconv.ParseInt(elem, 10, 0)
+				enddateint = append(enddateint, int(intdate))
 			}
-
-			for (time.Now().Before(endt) || (endtime == "")) {
-				starttimearray := strings.Split(time.Now().String(), " ")
-				influxStartQ = " where time > '" + starttimearray[0] + " " + starttimearray[1] + "'"
-				influxQuery := influxQueryBase + influxStartQ + influxEndQ
-				newResults, err := client.Query(influxQuery)
-				if err != nil {
-					fmt.Println("Invalid Query!")
-					return retResults, err
-				}
-				for _, series := range newResults {
-					for _, point := range series.GetPoints() {
-						fmt.Printf("%v\t %v\t %v\n", series.GetName(), point[0], point[1])
-					}
-				}
-				newResults = []*Series{}
+			for _, elem := range endtimestring {
+				inttime, _ := strconv.ParseInt(elem, 10, 0)
+				endtimeint = append(endtimeint, int(inttime))
 			}
+			endt = time.Date(enddateint[0], time.Month(enddateint[1]), enddateint[2], endtimeint[0], endtimeint[1], endtimeint[2], 0, time.UTC)
+		}
+		
+		for (time.Now().Before(endt) || (endtime == "")) {
+			fmt.Println("LOOPING!")
+			starttimearray := strings.Split(time.Now().String(), " ")
+			influxStartQ = " where time > '" + starttimearray[0] + " " + starttimearray[1] + "'"
+			influxQuery := influxQueryBase + influxStartQ + influxEndQ
+			newResults, err := client.Query(influxQuery)
+			if err != nil {
+				fmt.Println("Invalid Query!")
+				return retResults, err
+			}
+			for _, series := range newResults {
+				for _, point := range series.GetPoints() {
+					fmt.Printf("%v\t %v\t %v\n", series.GetName(), point[0], point[1])
+				}
+			}
+			newResults = []*Series{}
+		}
 		*/
 		return influxQuery
 	default:

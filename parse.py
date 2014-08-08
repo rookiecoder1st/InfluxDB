@@ -15,7 +15,7 @@ def parse_args():
     parser = optparse.OptionParser(usage=usage)
     parser.add_option('-H', '--HOST', type="string", default="localhost",
                       help="Database connection host")
-    parser.add_option('-P', '--PORT', type="int", default=8086,
+    parser.add_option('-P', '--PORT', type="int", default=8097,
                       help="Database connection port number")
     parser.add_option('-u', '--user', type="string", default="root",
                       help="User name for writing to the database")
